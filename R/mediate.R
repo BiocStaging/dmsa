@@ -290,8 +290,8 @@
 
 ## Freedman-Lane permutation p for one term of a moment-space regression.
 ## D: centered data matrix (columns include xn and, when y is latent, yn).
-## y offsets: Vy subtracted from Var(y) (fixed across permutations - the
-## measurement fit does not change when residuals are relabelled).
+## Vy: kept in the signature for the callers; the sandwich pivot (E14) is
+## built from the UNCORRECTED response variance and does not use it.
 ## blocks + block_mode:
 ##   "within"   residuals permute WITHIN each block (chip scheme, Winkler)
 ##   "exchange" whole blocks of EQUAL SIZE exchange with each other, row
@@ -301,39 +301,54 @@
 .med_fl <- function(D, S, xn, yn, term, n, B, blocks = NULL, Vy = 0,
                     block_mode = c("within", "exchange"), Sobs = NULL) {
   block_mode <- match.arg(block_mode)
-  ## PIVOT STABILITY: the coefficient is estimated from the CORRECTED
-  ## moments (disattenuation lives in Sxx/Sxy - the response variance never
-  ## enters b), but the t statistic's residual variance uses the
-  ## UNCORRECTED response variance. Subtracting the mediator's error
-  ## variance from the residual makes the pivot degenerate at low
-  ## reliability + modest n (observed on real data: p = 1.000 cells and a
-  ## large power loss on a-paths relative to score-level analysis).
-  ## Freedman-Lane validity is untouched - the same pivot is computed for
-  ## observed and permuted data.
-  Sp <- S
-  Sp[yn, yn] <- S[yn, yn] + Vy
-  full <- .med_reg(Sp, xn, yn, n)
-  tobs <- full$t[[term]]
-  red <- setdiff(xn, term)
-  ## FL GEOMETRY: the reduced-model residuals MUST come from the raw OLS
-  ## fit (orthogonal to the reduced design in-sample) - building them from
-  ## the corrected coefficients leaves a residual-design correlation that
-  ## permutation destroys, mis-centering the permuted null (observed on
-  ## real data as p = 1.000 cells wherever the correction gap was large).
-  ## The corrected statistic is still what is computed, identically, on
-  ## observed and permuted data - textbook Freedman-Lane.
-  Sraw <- if (is.null(Sobs)) Sp else Sobs
-  rf <- .med_reg(Sraw, red, yn, n)
+  ## PIVOT (E14, 2026-09-02, PI ruling): the errors-in-variables SANDWICH.
+  ## The coefficient is the corrected-moment estimate b = S*xx^-1 Sxy; its
+  ## variance, treating the error variances as known, is
+  ##   Var(b) = sigma2_obs * S*xx^-1 S_obs S*xx^-1 / (n - k),
+  ##   sigma2_obs = Var(y) - 2 b'Sxy + b' S_obs b
+  ## (Meijer, Spierdijk & Wansbeek 2020; Devlieger, Mayer & Rosseel 2016),
+  ## where S_obs is the UNCORRECTED moment matrix of the regressors. The
+  ## previous pivot divided the corrected coefficient by the plain-OLS
+  ## residual (Var(y) - b'Sxy), which over-subtracts once b is
+  ## disattenuated: level was exact (same pivot on observed and permuted
+  ## data) but the null had heavy tails and power on error-prone
+  ## main-effect paths dropped (b1 .735 -> .815, a1 .855 -> .945 at n = 200,
+  ## rel .70, identical permutation; interaction paths unchanged). Vy is no
+  ## longer needed by the pivot: sigma2_obs is built from the uncorrected
+  ## response variance by construction. Freedman-Lane geometry is
+  ## unchanged: reduced-model residuals from the RAW OLS fit (orthogonal to
+  ## the reduced design in-sample), the corrected S*xx and the sandwich
+  ## matrix held FIXED across permutations, the identical statistic on
+  ## observed and permuted responses.
+  Sraw <- if (is.null(Sobs)) S else Sobs
+  Sxx <- S[xn, xn, drop = FALSE]
+  Sxxi <- tryCatch(solve(Sxx), error = function(e)
+    solve(Sxx + diag(1e-6 * mean(diag(Sxx)), nrow(Sxx))))
+  So <- Sraw[xn, xn, drop = FALSE]
+  A <- Sxxi %*% So %*% Sxxi                 # sandwich core, fixed
+  kk <- length(xn) + 1L                      # + intercept (data are centered)
+  j <- match(term, xn)
+  Xc <- D[, xn, drop = FALSE]
   y <- D[, yn]
+  vy_obs <- as.numeric(sum(y^2) / (n - 1))   # uncorrected response variance
+  stat <- function(yv, vyv) {
+    Sxy <- as.numeric(crossprod(Xc, yv)) / (n - 1)
+    b <- as.numeric(Sxxi %*% Sxy)
+    s2 <- vyv - 2 * sum(b * Sxy) + as.numeric(crossprod(b, So %*% b))
+    bad <- !is.finite(s2) || s2 <= 0
+    if (bad) s2 <- 1e-12
+    list(b = b, se = sqrt(s2 * A[j, j] / (n - kk)), bad = bad)
+  }
+  obs <- stat(y, vy_obs)
+  tobs <- obs$b[j] / obs$se
+  red <- setdiff(xn, term)
+  rf <- .med_reg(Sraw, red, yn, n)
   fit <- as.numeric(D[, red, drop = FALSE] %*% rf$b)
   r <- y - fit
   rows <- if (is.null(blocks)) list(seq_len(n)) else
     split(seq_len(n), blocks)
   strata <- if (block_mode == "exchange")
     split(seq_along(rows), lengths(rows)) else NULL
-  Sxx <- S[xn, xn, drop = FALSE]; Sxxi <- full$Sxxi
-  kk <- length(xn) + 1L
-  Xc <- D[, xn, drop = FALSE]
   tn <- numeric(B); bad <- 0L
   for (bb in seq_len(B)) {
     ix <- integer(n)
@@ -345,14 +360,13 @@
     }
     yp <- fit + r[ix]
     yp <- yp - mean(yp)
-    Sxy <- as.numeric(crossprod(Xc, yp)) / (n - 1)
-    bp <- as.numeric(Sxxi %*% Sxy)
-    rssp <- as.numeric(sum(yp^2) / (n - 1) - crossprod(bp, Sxy))
-    if (!is.finite(rssp) || rssp <= 0) { rssp <- 1e-12; bad <- bad + 1L }
-    tn[bb] <- bp[match(term, xn)] / sqrt(rssp * Sxxi[term, term] / (n - kk))
+    sp <- stat(yp, sum(yp^2) / (n - 1))
+    if (sp$bad) bad <- bad + 1L
+    tn[bb] <- sp$b[j] / sp$se
   }
+  b_all <- obs$b; names(b_all) <- xn
   list(t = tobs, p = (1 + sum(abs(tn) >= abs(tobs))) / (B + 1),
-       b = full$b[[term]], se = full$se[[term]], degenerate = bad)
+       b = b_all[[term]], se = obs$se, degenerate = bad)
 }
 
 ## ---------------------------------------------------------------------------

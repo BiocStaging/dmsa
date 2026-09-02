@@ -215,3 +215,56 @@ test_that("family-block exchange permutation and cluster bootstrap run", {
     block = "cID", perm_blocks = "chip", B = 19),
     "cannot be combined")
 })
+
+## E14 (2026-09-02, PI ruling): the Freedman-Lane pivot is the errors-in-
+## variables sandwich, not the plain-OLS rss on a corrected coefficient.
+test_that("E14: the FL pivot is the EIV sandwich and reduces to OLS for observed regressors", {
+  set.seed(14)
+  n <- 150
+  X <- rnorm(n); W <- .3 * X + sqrt(.91) * rnorm(n); Y <- .4 * X + .2 * W + rnorm(n)
+  D <- scale(cbind(X = X, W = W, y = Y), scale = FALSE)
+  ## (i) no measurement error: the pivot must equal the classical OLS t exactly
+  mm <- dmsa:::.med_moments(D, voffset = numeric(0), products = list(), n = n)
+  fl <- dmsa:::.med_fl(D, mm$S, c("X", "W"), "y", "X", n, B = 0L, Sobs = mm$Sobs)
+  ols <- summary(lm(Y ~ X + W))$coefficients
+  expect_equal(unname(fl$b), unname(ols["X", "Estimate"]), tolerance = 1e-8)
+  expect_equal(unname(fl$se), unname(ols["X", "Std. Error"]), tolerance = 1e-8)
+  expect_equal(unname(fl$t), unname(ols["X", "t value"]), tolerance = 1e-8)
+  ## (ii) with error on X (reliability .7): se equals the sandwich formula
+  ##      sigma2_obs * [S*xx^-1 S_obs S*xx^-1]_jj / (n - k), sigma2_obs from the
+  ##      UNCORRECTED response variance
+  rel <- .7
+  Xe <- X + rnorm(n, 0, sqrt(var(X) * (1 - rel) / rel)); Xe <- (Xe - mean(Xe)) / sqrt(rel * var(Xe))
+  V <- (1 - rel) / rel
+  D2 <- scale(cbind(X = Xe, W = W, y = Y), scale = FALSE)
+  mm2 <- dmsa:::.med_moments(D2, voffset = c(X = V), products = list(), n = n)
+  fl2 <- dmsa:::.med_fl(D2, mm2$S, c("X", "W"), "y", "X", n, B = 0L, Sobs = mm2$Sobs)
+  xn <- c("X", "W"); Sxxi <- solve(mm2$S[xn, xn]); So <- mm2$Sobs[xn, xn]
+  b <- as.numeric(Sxxi %*% mm2$S[xn, "y"])
+  s2 <- mm2$Sobs["y", "y"] - 2 * sum(b * mm2$S[xn, "y"]) + as.numeric(t(b) %*% So %*% b)
+  se_ref <- sqrt(s2 * (Sxxi %*% So %*% Sxxi)[1, 1] / (n - 3))
+  expect_equal(unname(fl2$b), b[1], tolerance = 1e-10)
+  expect_equal(unname(fl2$se), unname(se_ref), tolerance = 1e-10)
+  expect_gt(s2, 0)
+  ## the corrected coefficient is disattenuated relative to the raw one
+  expect_gt(abs(fl2$b), abs(coef(lm(Y ~ Xe + W))[["Xe"]]) * 1.05)
+})
+
+test_that("E14: no degenerate permutations with error-prone regressors, level plausible", {
+  set.seed(15)
+  n <- 160; rel <- .7; B <- 199L
+  pv <- numeric(20); deg <- 0L
+  for (r in seq_len(20)) {
+    X <- rnorm(n); W <- .3 * X + sqrt(.91) * rnorm(n); M <- .4 * X + .2 * W + rnorm(n) * .8
+    noisy <- function(v) { e <- v + rnorm(n, 0, sqrt(var(v) * (1 - rel) / rel)); (e - mean(e)) / sqrt(rel * var(e)) }
+    F <- cbind(X = noisy(X), W = noisy(W))
+    D <- scale(cbind(F, `X:W` = F[, "X"] * F[, "W"], m = M - mean(M)), scale = FALSE)
+    V <- (1 - rel) / rel
+    mm <- dmsa:::.med_moments(D, voffset = c(X = V, W = V), products = list(`X:W` = c("X", "W")), n = n)
+    fl <- dmsa:::.med_fl(D, mm$S, c("X", "W", "X:W"), "m", "X:W", n, B, Sobs = mm$Sobs)   # true a3 = 0
+    pv[r] <- fl$p; deg <- deg + fl$degenerate
+  }
+  expect_identical(deg, 0L)
+  expect_lte(mean(pv <= .05), 0.25)     # loose bound, 20 reps at a true null
+  expect_true(all(pv > 0 & pv <= 1))
+})

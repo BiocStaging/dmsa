@@ -1,3 +1,40 @@
+# dmsa 0.99.11
+
+## `dmsa_mediate()`: the permutation pivot is now the errors-in-variables sandwich (engine finding E14)
+
+* **What changed.** `dmsa_mediate()` estimates structural coefficients from
+  measurement-error-corrected moments, and tests each path by Freedman-Lane
+  permutation. The permutation statistic previously divided the CORRECTED
+  coefficient by the plain-OLS residual variance (`Var(y) - b'Sxy`), which
+  over-subtracts once the coefficient is disattenuated. The level was exact
+  (the same statistic is computed on observed and permuted responses), but
+  the null distribution grew heavy tails and power on error-prone
+  main-effect paths was lost - the anchor `b[m]` and the `a[x]` path above
+  all. The statistic is now the errors-in-variables sandwich,
+  `Var(b) = sigma2_obs * S*xx^-1 S_obs S*xx^-1 / (n - k)` with
+  `sigma2_obs = Var(y) - 2 b'Sxy + b'S_obs b` (Meijer, Spierdijk & Wansbeek
+  2020; Devlieger, Mayer & Rosseel 2016), held fixed across permutations
+  like the corrected design moments. Freedman-Lane geometry (raw
+  reduced-model residuals, family-block exchange, within-chip permutation)
+  is unchanged. For error-free regressors the new pivot IS the classical
+  OLS t (tested exactly).
+* **Effect.** Identical generator, n = 200, reliability .70 on X, M and W,
+  B = 499: power `a[x]` .855 -> .93, `b[m]` .735 -> .82, interaction
+  paths unchanged (.76 / .87), Type I on the interaction paths at the
+  null .047 / .043, zero degenerate permutations (the old pivot's
+  `rssp <= 0` clamp no longer fires). The v2 simulation gate was rerun
+  under the new pivot (corner Type I and power surfaces; see
+  GATE_REPORT_E14).
+* **Scope.** `.med_fl()` is used only by `dmsa_mediate()`. Nothing else in
+  the package - `dmsa_triangulate()`, the lenses, maxT/minP,
+  `dmsa_moderate()`, `dmsa_change()`, the outcome families - computes a
+  corrected coefficient, and none of their numbers move. The `Vy` argument
+  of the internal `.med_fl()` is retained for its callers but no longer
+  enters the pivot.
+* Tests: two new tests in `test-mediate.R` (exact OLS reduction for
+  observed regressors; sandwich formula for an error-prone regressor; no
+  degenerate permutations and plausible level at a true null).
+
 # dmsa 0.99.10
 
 ## `blocks =` replaces `random_effects =`, and there is no default (spec 42)
