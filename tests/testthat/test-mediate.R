@@ -225,7 +225,7 @@ test_that("E14: the FL pivot is the EIV sandwich and reduces to OLS for observed
   D <- scale(cbind(X = X, W = W, y = Y), scale = FALSE)
   ## (i) no measurement error: the pivot must equal the classical OLS t exactly
   mm <- dmsa:::.med_moments(D, voffset = numeric(0), products = list(), n = n)
-  fl <- dmsa:::.med_fl(D, mm$S, c("X", "W"), "y", "X", n, B = 0L, Sobs = mm$Sobs)
+  fl <- dmsa:::.med_fl(D, mm$S, c("X", "W"), "y", "X", n, B = 0L, Sobs = mm$Sobs, pivot = "homoscedastic")
   ols <- summary(lm(Y ~ X + W))$coefficients
   expect_equal(unname(fl$b), unname(ols["X", "Estimate"]), tolerance = 1e-8)
   expect_equal(unname(fl$se), unname(ols["X", "Std. Error"]), tolerance = 1e-8)
@@ -238,7 +238,7 @@ test_that("E14: the FL pivot is the EIV sandwich and reduces to OLS for observed
   V <- (1 - rel) / rel
   D2 <- scale(cbind(X = Xe, W = W, y = Y), scale = FALSE)
   mm2 <- dmsa:::.med_moments(D2, voffset = c(X = V), products = list(), n = n)
-  fl2 <- dmsa:::.med_fl(D2, mm2$S, c("X", "W"), "y", "X", n, B = 0L, Sobs = mm2$Sobs)
+  fl2 <- dmsa:::.med_fl(D2, mm2$S, c("X", "W"), "y", "X", n, B = 0L, Sobs = mm2$Sobs, pivot = "homoscedastic")
   xn <- c("X", "W"); Sxxi <- solve(mm2$S[xn, xn]); So <- mm2$Sobs[xn, xn]
   b <- as.numeric(Sxxi %*% mm2$S[xn, "y"])
   s2 <- mm2$Sobs["y", "y"] - 2 * sum(b * mm2$S[xn, "y"]) + as.numeric(t(b) %*% So %*% b)
@@ -248,6 +248,73 @@ test_that("E14: the FL pivot is the EIV sandwich and reduces to OLS for observed
   expect_gt(s2, 0)
   ## the corrected coefficient is disattenuated relative to the raw one
   expect_gt(abs(fl2$b), abs(coef(lm(Y ~ Xe + W))[["Xe"]]) * 1.05)
+})
+
+## E15 (2026-09-03, PI ruling): the default pivot is the heteroscedasticity-
+## consistent EIV sandwich; E16: an empty reduced model is fitted as zero.
+test_that("E15: the HC pivot is HC0 for observed regressors, the EIV score sandwich with error, and the default", {
+  set.seed(115)
+  n <- 150
+  X <- rnorm(n); W <- .3 * X + sqrt(.91) * rnorm(n); Y <- .4 * X + .2 * W + rnorm(n) * (1 + .6 * abs(W))
+  D <- scale(cbind(X = X, W = W, y = Y), scale = FALSE)
+  mm <- dmsa:::.med_moments(D, voffset = numeric(0), products = list(), n = n)
+  fl <- dmsa:::.med_fl(D, mm$S, c("X", "W"), "y", "X", n, B = 0L, Sobs = mm$Sobs)
+  fl_d <- dmsa:::.med_fl(D, mm$S, c("X", "W"), "y", "X", n, B = 0L, Sobs = mm$Sobs, pivot = "hc")
+  expect_identical(fl$se, fl_d$se)                      # hc is the default
+  ## (i) no measurement error: HC0 sandwich of the centered OLS fit
+  fit <- lm(Y ~ X + W); Xc <- scale(cbind(X, W), scale = FALSE); e <- resid(fit)
+  bread <- solve(crossprod(Xc)); meat <- crossprod(Xc * e)
+  se_hc0 <- sqrt((bread %*% meat %*% bread)[1, 1])
+  expect_equal(unname(fl$b), unname(coef(fit)[["X"]]), tolerance = 1e-8)
+  expect_equal(unname(fl$se), se_hc0, tolerance = 1e-8)
+  ## (ii) with error on X: the estimating-equation sandwich with scores x_i e_i + Ofs b
+  rel <- .7
+  Xe <- X + rnorm(n, 0, sqrt(var(X) * (1 - rel) / rel)); Xe <- (Xe - mean(Xe)) / sqrt(rel * var(Xe))
+  V <- (1 - rel) / rel
+  D2 <- scale(cbind(X = Xe, W = W, y = Y), scale = FALSE)
+  mm2 <- dmsa:::.med_moments(D2, voffset = c(X = V), products = list(), n = n)
+  fl2 <- dmsa:::.med_fl(D2, mm2$S, c("X", "W"), "y", "X", n, B = 0L, Sobs = mm2$Sobs)
+  xn <- c("X", "W"); Sxxi <- solve(mm2$S[xn, xn]); Ofs <- mm2$Sobs[xn, xn] - mm2$S[xn, xn]
+  b <- as.numeric(Sxxi %*% mm2$S[xn, "y"]); Xc2 <- D2[, xn]; e2 <- as.numeric(D2[, "y"] - Xc2 %*% b)
+  Sc <- Xc2 * e2 + matrix(as.numeric(Ofs %*% b), n, 2, byrow = TRUE)
+  se_ref <- sqrt((Sxxi %*% crossprod(Sc) %*% Sxxi / (n - 1)^2)[1, 1])
+  expect_equal(unname(fl2$b), b[1], tolerance = 1e-10)
+  expect_equal(unname(fl2$se), unname(se_ref), tolerance = 1e-10)
+  ## the homoscedastic pivot is still available and differs under heteroscedasticity
+  fl3 <- dmsa:::.med_fl(D2, mm2$S, c("X", "W"), "y", "X", n, B = 0L, Sobs = mm2$Sobs, pivot = "homoscedastic")
+  expect_equal(unname(fl3$b), b[1], tolerance = 1e-10)
+  expect_false(isTRUE(all.equal(fl3$se, fl2$se)))
+})
+
+test_that("E15/E16: strata restrict the exchange, blocks must nest in strata, empty reduced model runs", {
+  set.seed(116)
+  n <- 120; X <- rnorm(n); Y <- .3 * X + rnorm(n)
+  D <- scale(cbind(X = X, y = Y), scale = FALSE)
+  mm <- dmsa:::.med_moments(D, voffset = numeric(0), products = list(), n = n)
+  ## E16: one predictor, no covariates - the reduced model is empty
+  fl <- dmsa:::.med_fl(D, mm$S, "X", "y", "X", n, B = 49L, Sobs = mm$Sobs)
+  expect_true(is.finite(fl$p)); expect_lt(fl$p, .05)
+  ## strata + blocks: each block inside one stratum -> runs; a block across strata -> refused
+  fam <- factor(rep(seq_len(n / 2), each = 2)); wave <- factor(rep(1:3, each = 40))
+  fl2 <- dmsa:::.med_fl(D, mm$S, "X", "y", "X", n, B = 49L, blocks = fam, block_mode = "exchange", Sobs = mm$Sobs, strata = wave)
+  expect_true(is.finite(fl2$p))
+  expect_error(dmsa:::.med_fl(D, mm$S, "X", "y", "X", n, B = 9L, blocks = fam, block_mode = "exchange", Sobs = mm$Sobs, strata = factor(rep(1:2, n / 2))), "spans more than one stratum")
+  ## strata without blocks: within-stratum permutation - the permuted response keeps the stratum means
+  fl3 <- dmsa:::.med_fl(D, mm$S, "X", "y", "X", n, B = 49L, Sobs = mm$Sobs, strata = wave)
+  expect_true(is.finite(fl3$p))
+  ## dmsa_mediate passes both through and the homoscedastic pivot reproduces the pre-E15 statistic
+  skip_if_not(nzchar(system.file("extdata", "coverage_v4_full.csv", package = "dmsa")))
+  mp <- utils::read.csv(system.file("extdata", "coverage_v4_full.csv", package = "dmsa"))
+  mp <- mp[is.finite(mp$best_direction) & mp$system_id %in% c(1, 2, 15), ]
+  pr <- unique(mp$probe); n <- 96
+  B <- matrix(plogis(rnorm(n * length(pr))), n, length(pr), dimnames = list(NULL, pr))
+  dat <- data.frame(y = rnorm(n), age = rnorm(n), fam = factor(rep(1:48, each = 2)), wave = factor(rep(1:4, each = 24)))
+  f <- suppressWarnings(dmsa_mediate(dat, methylation = B, map = "alpha", x = "hpa", m = "kynurenine", w = "oxytocin",
+    outcome = "y", covariates = "age", block = "fam", strata = "wave", B = 19, seed = 42))
+  expect_equal(f$pivot, "hc"); expect_equal(f$strata, "wave")
+  expect_output(print(f), "pivot: hc   strata: wave")
+  expect_error(dmsa_mediate(dat, methylation = B, map = "alpha", x = "hpa", m = "kynurenine", w = "oxytocin",
+    outcome = "y", covariates = "age", strata = "nope", B = 9), "not in data")
 })
 
 test_that("E14: no degenerate permutations with error-prone regressors, level plausible", {

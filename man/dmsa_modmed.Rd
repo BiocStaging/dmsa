@@ -33,7 +33,9 @@ dmsa_modmed(
   alpha_ssc = 0,
   conditional_at = c(-1, 0, 1),
   beta_input = TRUE,
-  seed = NULL
+  seed = NULL,
+  pivot = c("hc", "homoscedastic"),
+  strata = NULL
 )
 }
 \arguments{
@@ -148,6 +150,22 @@ conditional indirect effects are reported.}
 (converted to M-values internally).}
 
 \item{seed}{Optional integer; the caller's RNG state is restored.}
+
+\item{pivot}{Studentisation of the Freedman-Lane statistic:
+\code{"hc"} (default since 0.99.13, engine ruling E15) is the
+heteroscedasticity-consistent errors-in-variables sandwich - the
+estimating-equation sandwich of the corrected estimator with the meat
+recomputed per permutation (DiCiccio & Romano 2017; Buonaccorsi 2010);
+\code{"homoscedastic"} is the E14 sandwich of 0.99.11-0.99.12 and
+reproduces those results exactly. Under a heteroscedastic mediator
+disturbance the E14 interaction test ran at .09-.10; the HC pivot holds
+.05 at no cost under homoscedasticity (GATE_REPORT_hc).}
+
+\item{strata}{Optional column in \code{data}: permutation stratum. With
+\code{block}, equal-size blocks exchange only within a stratum (each
+block must lie inside one stratum); without \code{block}, residuals
+permute within stratum. The registered use is the after-wave of the
+before/after builds.}
 }
 \value{
 An object of class \code{dmsa_modmed}: the roles and their

@@ -1,3 +1,52 @@
+# dmsa 0.99.13
+
+## `dmsa_mediate()` / `dmsa_modmed()`: heteroscedasticity-consistent pivot (E15), permutation strata (E15), empty reduced model (E16)
+
+* **What changed (E15, pivot).** The Freedman-Lane statistic is now
+  studentised with the heteroscedasticity-consistent errors-in-variables
+  sandwich by default. The corrected-moments estimator solves the
+  estimating equation `sum_i x_i (y_i - x_i'b)/(n-1) + Ofs b = 0`, with
+  `Ofs` the moment offsets; its per-person score is `s_i = x_i e_i + Ofs b`
+  and `Var(b) = S*xx^-1 [sum_i s_i s_i'] S*xx^-1 / (n-1)^2` (HC0 form;
+  Buonaccorsi 2010 ch. 5). The permutation test is the studentised
+  Freedman-Lane of DiCiccio & Romano (2017): the meat is recomputed on every
+  permuted response, the reduced-model residuals, the corrected `S*xx` and
+  the block exchange are unchanged. With no measurement error and
+  homoscedastic disturbances it is the ordinary HC0 statistic. `pivot =
+  "homoscedastic"` selects the E14 sandwich of 0.99.11-0.99.12 and
+  reproduces those results exactly (tested).
+* **Why.** Gate v3 found the E14 pivot at .087-.097 on the interaction path
+  when the mediator's disturbance variance grows with the moderator - the
+  heterogeneity that random slopes in W produce, i.e. the situation in
+  which a moderation claim is being made. Under the HC pivot that cell
+  holds .053; under homoscedasticity nothing changes (.047 / .057 at the
+  null, power .97 / .98 unchanged); under heteroscedasticity the
+  interaction path gives up six points of power. GATE_REPORT_hc (prototype)
+  and GATE_REPORT_E15 (the shipped engine, full gate v3 grid, the v2/E14
+  gate, and n = 70 cells).
+* **What changed (E15, strata).** `dmsa_mediate()` and `dmsa_modmed()`
+  take `strata =`, a column naming a permutation stratum. With `block`,
+  equal-size blocks exchange only within a stratum (a block spanning two
+  strata is refused); without `block`, residuals permute within stratum.
+  Registered use: the after-wave of the before/after builds
+  (GATE_REPORT_delta section 1: stratification alone keeps the test
+  honest, the wave dummies remove the bias; both are required).
+* **What changed (E16).** An empty reduced model - one predictor and no
+  covariates in an equation - is fitted as zero (its residuals are the
+  centered response) instead of failing in `.med_reg()`. Plain mediation
+  with no covariates now runs; no existing result is touched, because that
+  case previously errored. The refusal `dmsa_modmed()` carried in 0.99.12
+  is gone.
+* **Reading the change.** Estimates are identical between the two pivots;
+  only the studentisation differs, so only permutation p-values move.
+  Under homoscedastic disturbances the difference is Monte-Carlo noise;
+  under heteroscedastic ones the HC p is the honest one.
+* Tests: E15 (HC0 identity for observed regressors; the score-sandwich
+  formula with error; default; homoscedastic pivot retained and distinct),
+  strata (nesting, refusal, within-stratum without blocks, pass-through),
+  E16 (empty reduced model runs). The E14 tests now call the homoscedastic
+  pivot explicitly.
+
 # dmsa 0.99.12
 
 ## New: `dmsa_modmed()` - general moderated mediation over observed and latent roles

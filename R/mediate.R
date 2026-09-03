@@ -299,8 +299,10 @@
 ##              the same relabelling dmsa_model() uses, preserving the
 ##              within-family dependence under the null)
 .med_fl <- function(D, S, xn, yn, term, n, B, blocks = NULL, Vy = 0,
-                    block_mode = c("within", "exchange"), Sobs = NULL) {
+                    block_mode = c("within", "exchange"), Sobs = NULL,
+                    pivot = c("hc", "homoscedastic"), strata = NULL) {
   block_mode <- match.arg(block_mode)
+  pivot <- match.arg(pivot)
   ## PIVOT (E14, 2026-09-02, PI ruling): the errors-in-variables SANDWICH.
   ## The coefficient is the corrected-moment estimate b = S*xx^-1 Sxy; its
   ## variance, treating the error variances as known, is
@@ -320,40 +322,82 @@
   ## the reduced design in-sample), the corrected S*xx and the sandwich
   ## matrix held FIXED across permutations, the identical statistic on
   ## observed and permuted responses.
+  ## PIVOT (E15, 2026-09-03, PI ruling): the HETEROSCEDASTICITY-CONSISTENT
+  ## errors-in-variables sandwich is the default. The corrected estimator
+  ## solves  sum_i x_i (y_i - x_i'b)/(n-1) + Ofs b = 0  with
+  ## Ofs = S_obs,xx - S*xx (the moment offsets), so its score for person i is
+  ##   s_i = x_i e_i + Ofs b,   Var(b) = S*xx^-1 [sum_i s_i s_i'] S*xx^-1/(n-1)^2
+  ## (HC0 form; Buonaccorsi 2010 ch. 5), and the studentised Freedman-Lane
+  ## of DiCiccio & Romano (2017) recomputes the meat on every permuted
+  ## response. With no measurement error and homoscedastic disturbances it
+  ## is the ordinary HC0 statistic. GATE_REPORT_hc: under a heteroscedastic
+  ## mediator disturbance the interaction test moved from .087-.097 to .053;
+  ## no cost under homoscedasticity; -6 points of interaction power when the
+  ## disturbance IS heteroscedastic. pivot = "homoscedastic" reproduces the
+  ## E14 statistic (0.99.11-0.99.12) exactly.
   Sraw <- if (is.null(Sobs)) S else Sobs
   Sxx <- S[xn, xn, drop = FALSE]
   Sxxi <- tryCatch(solve(Sxx), error = function(e)
     solve(Sxx + diag(1e-6 * mean(diag(Sxx)), nrow(Sxx))))
   So <- Sraw[xn, xn, drop = FALSE]
   A <- Sxxi %*% So %*% Sxxi                 # sandwich core, fixed
+  Ofs <- So - Sxx                            # moment offsets on the regressors
   kk <- length(xn) + 1L                      # + intercept (data are centered)
   j <- match(term, xn)
   Xc <- D[, xn, drop = FALSE]
   y <- D[, yn]
   vy_obs <- as.numeric(sum(y^2) / (n - 1))   # uncorrected response variance
-  stat <- function(yv, vyv) {
+  stat <- if (pivot == "homoscedastic") function(yv, vyv) {
     Sxy <- as.numeric(crossprod(Xc, yv)) / (n - 1)
     b <- as.numeric(Sxxi %*% Sxy)
     s2 <- vyv - 2 * sum(b * Sxy) + as.numeric(crossprod(b, So %*% b))
     bad <- !is.finite(s2) || s2 <= 0
     if (bad) s2 <- 1e-12
     list(b = b, se = sqrt(s2 * A[j, j] / (n - kk)), bad = bad)
+  } else function(yv, vyv) {
+    Sxy <- as.numeric(crossprod(Xc, yv)) / (n - 1)
+    b <- as.numeric(Sxxi %*% Sxy)
+    e <- as.numeric(yv - Xc %*% b)
+    Sc <- Xc * e + matrix(as.numeric(Ofs %*% b), n, length(xn), byrow = TRUE)
+    V <- Sxxi %*% crossprod(Sc) %*% Sxxi / (n - 1)^2
+    bad <- !is.finite(V[j, j]) || V[j, j] <= 0
+    list(b = b, se = sqrt(if (bad) 1e-12 else V[j, j]), bad = bad)
   }
   obs <- stat(y, vy_obs)
   tobs <- obs$b[j] / obs$se
   red <- setdiff(xn, term)
-  rf <- .med_reg(Sraw, red, yn, n)
-  fit <- as.numeric(D[, red, drop = FALSE] %*% rf$b)
+  ## E16 (2026-09-03, PI ruling): an EMPTY reduced model (one predictor, no
+  ## covariates) has fitted values 0 - the residuals are the centered response
+  fit <- if (length(red)) {
+    rf <- .med_reg(Sraw, red, yn, n)
+    as.numeric(D[, red, drop = FALSE] %*% rf$b)
+  } else rep(0, n)
   r <- y - fit
   rows <- if (is.null(blocks)) list(seq_len(n)) else
     split(seq_len(n), blocks)
-  strata <- if (block_mode == "exchange")
-    split(seq_along(rows), lengths(rows)) else NULL
+  if (is.null(blocks) && !is.null(strata))      # strata without blocks: permute within stratum
+    rows <- split(seq_len(n), as.character(strata))
+  ## exchange groups: blocks of equal size, and - when `strata` is given -
+  ## of the same stratum (E15 ruling: the after-wave of the long builds;
+  ## GATE_REPORT_delta section 1). `strata` is a per-row factor; a block
+  ## must lie inside one stratum.
+  grp <- if (block_mode == "exchange") {
+    key <- lengths(rows)
+    if (!is.null(strata)) {
+      sv <- as.character(strata)
+      bs <- vapply(rows, function(i) {
+        u <- unique(sv[i])
+        if (length(u) != 1L) stop("a permutation block spans more than one stratum", call. = FALSE)
+        u }, character(1))
+      key <- paste(key, bs)
+    }
+    split(seq_along(rows), key)
+  } else NULL
   tn <- numeric(B); bad <- 0L
   for (bb in seq_len(B)) {
     ix <- integer(n)
     if (block_mode == "exchange" && !is.null(blocks)) {
-      for (st in strata) ix[unlist(rows[st], use.names = FALSE)] <-
+      for (st in grp) ix[unlist(rows[st], use.names = FALSE)] <-
         unlist(rows[st[sample.int(length(st))]], use.names = FALSE)
     } else {
       for (rw in rows) ix[rw] <- rw[sample.int(length(rw))]
@@ -380,7 +424,8 @@
 .med_core <- function(tones, dat, x, m, w, outcome, covariates,
                       measurement, B, blocks, model8, conditional_at,
                       alpha_ssc, boot = 0L, single_rel = NULL,
-                      block_mode = "within", mod_weights = NULL) {
+                      block_mode = "within", mod_weights = NULL,
+                      pivot = "hc", strata = NULL) {
   n <- nrow(dat)
   systems <- c(x, m, if (!is.null(w)) w)
   meas <- lapply(systems, function(s)
@@ -419,19 +464,23 @@
   paths <- list()
   for (tm in a_terms) paths[[paste0("a[", tm, "]")]] <-
     .med_fl(D, mm$S, mx, m, tm, n, B, blocks, Vy = voff[[m]],
-            block_mode = block_mode, Sobs = mm$Sobs)
+            block_mode = block_mode, Sobs = mm$Sobs,
+            pivot = pivot, strata = strata)
   paths[[paste0("b[", m, "]")]] <-
     .med_fl(D, mm$S, yx, "y", m, n, B, blocks, Vy = 0,
-            block_mode = block_mode, Sobs = mm$Sobs)
+            block_mode = block_mode, Sobs = mm$Sobs,
+            pivot = pivot, strata = strata)
   ## direct effects: the X (and W) coefficients of the SAME Y-model - the
   ## c' paths of the mediation triad, estimated controlling for M
   for (tm in c(x, if (!is.null(w)) w))
     paths[[paste0("c'[", tm, "]")]] <-
       .med_fl(D, mm$S, yx, "y", tm, n, B, blocks, Vy = 0,
-              block_mode = block_mode, Sobs = mm$Sobs)
+              block_mode = block_mode, Sobs = mm$Sobs,
+            pivot = pivot, strata = strata)
   if (model8) for (pn in names(prods)) paths[[paste0("c[", pn, "]")]] <-
     .med_fl(D, mm$S, yx, "y", pn, n, B, blocks, Vy = 0,
-            block_mode = block_mode, Sobs = mm$Sobs)
+            block_mode = block_mode, Sobs = mm$Sobs,
+            pivot = pivot, strata = strata)
 
   collin <- list(M_model = .med_collin(mm$S, mx),
                  Y_model = .med_collin(mm$S, yx))
@@ -561,6 +610,20 @@
 #' @param beta_input \code{TRUE} when \code{methylation} holds betas
 #'   (converted to M-values internally).
 #' @param seed Optional integer; the caller's RNG state is restored.
+#' @param pivot Studentisation of the Freedman-Lane statistic:
+#'   \code{"hc"} (default since 0.99.13, engine ruling E15) is the
+#'   heteroscedasticity-consistent errors-in-variables sandwich - the
+#'   estimating-equation sandwich of the corrected estimator with the meat
+#'   recomputed per permutation (DiCiccio & Romano 2017; Buonaccorsi 2010);
+#'   \code{"homoscedastic"} is the E14 sandwich of 0.99.11-0.99.12 and
+#'   reproduces those results exactly. Under a heteroscedastic mediator
+#'   disturbance the E14 interaction test ran at .09-.10; the HC pivot holds
+#'   .05 at no cost under homoscedasticity (GATE_REPORT_hc).
+#' @param strata Optional column in \code{data}: permutation stratum. With
+#'   \code{block}, equal-size blocks exchange only within a stratum (each
+#'   block must lie inside one stratum); without \code{block}, residuals
+#'   permute within stratum. The registered use is the after-wave of the
+#'   before/after builds.
 #' @return An object of class \code{dmsa_mediate}: per-system measurement
 #'   tables, path coefficient tables with permutation p per path, indices
 #'   of moderated mediation with joint-significance + Holm p, conditional
@@ -599,9 +662,11 @@ dmsa_mediate <- function(data, methylation = NULL, map = "alpha",
                          map_level = c("full", "confidence"),
                          B = 1999L, boot = 0L, alpha_ssc = 0,
                          conditional_at = c(-1, 0, 1),
-                         beta_input = TRUE, seed = NULL) {
+                         beta_input = TRUE, seed = NULL,
+                         pivot = c("hc", "homoscedastic"), strata = NULL) {
   measurement <- match.arg(measurement)
   perm_blocks <- match.arg(perm_blocks)
+  pivot <- match.arg(pivot)
   model <- match.arg(model)
   map_level <- match.arg(map_level)
   module_weights <- match.arg(module_weights)
@@ -657,7 +722,7 @@ dmsa_mediate <- function(data, methylation = NULL, map = "alpha",
   if (!is.null(block) && perm_blocks == "chip")
     stop("`block` (family exchangeability) and perm_blocks = 'chip' cannot ",
          "be combined; family blocks are the exchangeable unit", call. = FALSE)
-  need <- c(outcome, covariates, chip, block)
+  need <- c(outcome, covariates, chip, block, strata)
   miss <- setdiff(need, names(data))
   if (length(miss))
     stop("column(s) not in data: ", paste(miss, collapse = ", "), call. = FALSE)
@@ -801,6 +866,7 @@ dmsa_mediate <- function(data, methylation = NULL, map = "alpha",
     chipv
   } else NULL
   bmode <- if (!is.null(blockv)) "exchange" else "within" 
+  stratav <- if (!is.null(strata)) as.factor(data[[strata]]) else NULL
 
   mwl <- lapply(tones, attr, "mod_w")
   core <- .med_core(tones, dat2, x = x, m = m, w = w, outcome = outcome,
@@ -808,7 +874,7 @@ dmsa_mediate <- function(data, methylation = NULL, map = "alpha",
                     B = B, blocks = blocks, model8 = model == "8",
                     conditional_at = conditional_at, alpha_ssc = alpha_ssc,
                     single_rel = single_rel, block_mode = bmode,
-                    mod_weights = mwl)
+                    mod_weights = mwl, pivot = pivot, strata = stratav)
 
   ## -- full-pipeline nonparametric bootstrap (measurement refit per draw) --
   ci <- NULL
@@ -858,6 +924,7 @@ dmsa_mediate <- function(data, methylation = NULL, map = "alpha",
     conditional = core$conditional, ci = ci,
     collinearity = core$collinearity,
     perm_blocks = if (!is.null(blockv)) "family-exchange" else perm_blocks,
+    pivot = pivot, strata = strata,
     moments = list(shrink = core$moments$shrink,
                    lambda_triggered = core$moments$lambda_triggered)),
     class = "dmsa_mediate")
@@ -866,8 +933,9 @@ dmsa_mediate <- function(data, methylation = NULL, map = "alpha",
 #' @export
 print.dmsa_mediate <- function(x, ...) {
   cat("Latent DMSA moderated mediation (Hayes model ", x$model, ")\n", sep = "")
-  cat(sprintf("  n = %d   B = %d permutations   blocks: %s\n",
-              x$n, x$B, x$perm_blocks))
+  cat(sprintf("  n = %d   B = %d permutations   blocks: %s   pivot: %s%s\n",
+              x$n, x$B, x$perm_blocks, x$pivot %||% "homoscedastic",
+              if (!is.null(x$strata)) paste0("   strata: ", x$strata) else ""))
   cat("  measurement (per system):\n")
   for (s in names(x$measurement)) {
     ms <- x$measurement[[s]]

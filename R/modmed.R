@@ -128,7 +128,7 @@
 
 ## structural stage: the general O/L core (MATH sections 1-4)
 .mm_core <- function(meas, x, m, w, y, w_on, direct_moderation, quadratic, covM, covn,
-                     B, blocks, block_mode, conditional_at, alpha_ssc) {
+                     B, blocks, block_mode, conditional_at, alpha_ssc, pivot = "hc", strata = NULL) {
   n <- length(meas[[y]]$f)
   nm <- c(x, m, if (!is.null(w)) w, y)
   F <- vapply(nm, function(v) meas[[v]]$f - mean(meas[[v]]$f), numeric(n)); colnames(F) <- nm
@@ -159,17 +159,17 @@
   ## the same call order as dmsa_mediate(): a-terms, b[m], the direct terms
   paths <- list()
   for (tm in a_terms) paths[[paste0("a[", tm, "]")]] <-
-    .med_fl(D, mm$S, mx, m, tm, n, B, blocks, Vy = Vof(m), block_mode = block_mode, Sobs = mm$Sobs)
+    .med_fl(D, mm$S, mx, m, tm, n, B, blocks, Vy = Vof(m), block_mode = block_mode, Sobs = mm$Sobs, pivot = pivot, strata = strata)
   paths[[paste0("b[", m, "]")]] <-
-    .med_fl(D, mm$S, yx, y, m, n, B, blocks, Vy = Vof(y), block_mode = block_mode, Sobs = mm$Sobs)
+    .med_fl(D, mm$S, yx, y, m, n, B, blocks, Vy = Vof(y), block_mode = block_mode, Sobs = mm$Sobs, pivot = pivot, strata = strata)
   for (tm in c(x, if (!is.null(w)) w)) paths[[paste0("c'[", tm, "]")]] <-
-    .med_fl(D, mm$S, yx, y, tm, n, B, blocks, Vy = Vof(y), block_mode = block_mode, Sobs = mm$Sobs)
+    .med_fl(D, mm$S, yx, y, tm, n, B, blocks, Vy = Vof(y), block_mode = block_mode, Sobs = mm$Sobs, pivot = pivot, strata = strata)
   if (w_on %in% c("b", "both")) paths[[paste0("b[", mw_, "]")]] <-
-    .med_fl(D, mm$S, yx, y, mw_, n, B, blocks, Vy = Vof(y), block_mode = block_mode, Sobs = mm$Sobs)
+    .med_fl(D, mm$S, yx, y, mw_, n, B, blocks, Vy = Vof(y), block_mode = block_mode, Sobs = mm$Sobs, pivot = pivot, strata = strata)
   if (direct_moderation) paths[[paste0("c'[", xw, "]")]] <-
-    .med_fl(D, mm$S, yx, y, xw, n, B, blocks, Vy = Vof(y), block_mode = block_mode, Sobs = mm$Sobs)
+    .med_fl(D, mm$S, yx, y, xw, n, B, blocks, Vy = Vof(y), block_mode = block_mode, Sobs = mm$Sobs, pivot = pivot, strata = strata)
   if (quadratic) for (tm in sq_m) paths[[paste0("a[", tm, "]")]] <-
-    .med_fl(D, mm$S, mx, m, tm, n, B, blocks, Vy = Vof(m), block_mode = block_mode, Sobs = mm$Sobs)
+    .med_fl(D, mm$S, mx, m, tm, n, B, blocks, Vy = Vof(m), block_mode = block_mode, Sobs = mm$Sobs, pivot = pivot, strata = strata)
   g <- function(k) paths[[k]]$b; gp <- function(k) paths[[k]]$p
   a1 <- g(paste0("a[", x, "]")); b1 <- g(paste0("b[", m, "]"))
   a3 <- if (w_on %in% c("a", "both")) g(paste0("a[", xw, "]")) else 0
@@ -261,8 +261,9 @@ dmsa_modmed <- function(data, methylation = NULL, map = "alpha",
                         map_level = c("full", "confidence"),
                         B = 1999L, boot = 0L, boot_rung = c("fixed", "ladder"),
                         alpha_ssc = 0, conditional_at = c(-1, 0, 1),
-                        beta_input = TRUE, seed = NULL) {
-  measurement <- match.arg(measurement); perm_blocks <- match.arg(perm_blocks)
+                        beta_input = TRUE, seed = NULL,
+                        pivot = c("hc", "homoscedastic"), strata = NULL) {
+  measurement <- match.arg(measurement); perm_blocks <- match.arg(perm_blocks); pivot <- match.arg(pivot)
   map_level <- match.arg(map_level); module_weights <- match.arg(module_weights)
   w_on <- match.arg(w_on); boot_rung <- match.arg(boot_rung)
   if (is.null(w)) { w_on <- "a"; direct_moderation <- FALSE }   # plain mediation
@@ -302,16 +303,13 @@ dmsa_modmed <- function(data, methylation = NULL, map = "alpha",
     cr }
   for (v in vals) if (spec[[v]]$role == "composite" && !is.finite(crel[[v]]))
     stop("composite_rel needed for role '", v, "'", call. = FALSE)
-  if (is.null(w) && !length(covariates))
-    stop("plain mediation with no covariates leaves the a-path's reduced model empty, which the ",
-         "Freedman-Lane engine does not fit (E16); add at least one covariate", call. = FALSE)
   systems <- vals[vapply(spec, function(s) s$kind == "system", logical(1))]
   columns <- vals[vapply(spec, function(s) s$kind == "column", logical(1))]
 
   ## -- complete cases -------------------------------------------------------
   if (!is.null(block) && perm_blocks == "chip")
     stop("`block` and perm_blocks = 'chip' cannot be combined", call. = FALSE)
-  need <- c(columns, covariates, chip, block)
+  need <- c(columns, covariates, chip, block, strata)
   miss <- setdiff(need, names(data))
   if (length(miss)) stop("column(s) not in data: ", paste(miss, collapse = ", "), call. = FALSE)
   keep <- stats::complete.cases(data[, need, drop = FALSE])
@@ -361,13 +359,14 @@ dmsa_modmed <- function(data, methylation = NULL, map = "alpha",
   blocks <- if (!is.null(blockv)) blockv else if (perm_blocks == "chip") {
     if (is.null(chipv)) stop("perm_blocks = 'chip' needs `chip`", call. = FALSE); chipv } else NULL
   bmode <- if (!is.null(blockv)) "exchange" else "within"
+  stratav <- if (!is.null(strata)) as.factor(data[[strata]]) else NULL
   covM <- if (length(covariates)) { M <- as.matrix(dat2[, covariates, drop = FALSE]); mode(M) <- "numeric"; M } else NULL
 
   ## -- measurement and structural stage ---------------------------------
   meas <- lapply(vals, function(v) .mm_measure_role(v, spec[[v]], tones, dat2, measurement, single_rel, crel, n))
   names(meas) <- vals
   core <- .mm_core(meas, x, m, w, y, w_on, direct_moderation, quadratic, covM, covariates,
-                   B, blocks, bmode, conditional_at, alpha_ssc)
+                   B, blocks, bmode, conditional_at, alpha_ssc, pivot = pivot, strata = stratav)
 
   ## -- full-pipeline bootstrap, rung fixed ---------------------------------
   ci <- NULL
@@ -408,6 +407,7 @@ dmsa_modmed <- function(data, methylation = NULL, map = "alpha",
     estimates = core$estimates, terms = core$terms, ci = ci,
     collinearity = core$collinearity,
     perm_blocks = if (!is.null(blockv)) "family-exchange" else perm_blocks,
+    pivot = pivot, strata = strata,
     moments = list(shrink = core$moments$shrink, lambda_triggered = core$moments$lambda_triggered)),
     class = "dmsa_modmed")
 }
@@ -417,7 +417,7 @@ print.dmsa_modmed <- function(x, ...) {
   stage <- switch(x$w_on, a = "first stage (Hayes 7)", b = "second stage (Hayes 14)", both = "dual stage (Hayes 58)")
   if (is.null(x$w)) stage <- "plain mediation"
   cat("General O/L moderated mediation - ", stage, if (x$direct_moderation) " + direct-effect moderation" else "", if (x$quadratic) " + quadratic safeguard" else "", "\n", sep = "")
-  cat(sprintf("  n = %d   B = %d permutations   blocks: %s\n", x$n, x$B, x$perm_blocks))
+  cat(sprintf("  n = %d   B = %d permutations   blocks: %s   pivot: %s%s\n", x$n, x$B, x$perm_blocks, x$pivot, if (!is.null(x$strata)) paste0("   strata: ", x$strata) else ""))
   cat("  roles:\n")
   for (v in names(x$roles)) {
     ms <- x$measurement[[v]]

@@ -95,5 +95,7 @@ test_that("plain mediation and the rung-fixed bootstrap", {
   set.seed(99); before <- .Random.seed
   invisible(suppressWarnings(dmsa_modmed(d$dat, methylation = d$B, x = "support", m = "hpa", y = "EPDS", covariates = "age", B = 9, seed = 42)))
   expect_identical(.Random.seed, before)
-  expect_error(dmsa_modmed(d$dat, methylation = d$B, x = "support", m = "hpa", y = "EPDS", B = 9), "E16")
+  ## E16: an empty reduced model (one predictor, no covariates) now runs
+  f16 <- suppressWarnings(dmsa_modmed(d$dat, methylation = d$B, x = "support", m = "hpa", y = "EPDS", B = 19, seed = 16))
+  expect_true(is.finite(f16$paths[["a[support]"]]$p))
 })
