@@ -1,6 +1,6 @@
 Package: dmsa
 Title: Directional Methylation Set Analysis
-Version: 0.99.11
+Version: 0.99.12
 Authors@R: c(person("Tsachi", "Ein-Dor", role = c("aut", "cre", "fnd"),
     email = "teindor@runi.ac.il",
     comment = c(ORCID = "0000-0002-3078-7591")))
@@ -19,7 +19,7 @@ Description: Aligns probe-level methylation effects to their predicted
     entry must be specified by the user.
 License: MIT + file LICENSE
 Encoding: UTF-8
-Depends: R (>= 4.6.0)
+Depends: R (>= 4.3.0)
 Imports: stats, utils, methods, grDevices, graphics, data.table,
     SummarizedExperiment
 Suggests: testthat (>= 3.0.0), knitr, rmarkdown, gt, lme4, lmerTest, MASS,

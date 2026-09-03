@@ -1,3 +1,42 @@
+# dmsa 0.99.12
+
+## New: `dmsa_modmed()` - general moderated mediation over observed and latent roles
+
+* **What it adds.** The general form of `dmsa_mediate()`: each of the
+  predictor, mediator, moderator and outcome is EITHER a methylation system
+  (a latent tone by the measurement ladder, or a single-indicator composite
+  at a fixed reliability - .70 is the registered choice) OR a column of
+  `data` (observed, or a questionnaire composite at a fixed reliability).
+  The moderator can act on the a-path (Hayes 7), the b-path (14) or both
+  (58, dual stage), with optional direct-effect moderation (8 / 15 / 59)
+  and an optional curvilinear safeguard (`quadratic = TRUE`: x^2, w^2 in
+  the M-model and m^2, x^2, w^2 in the Y-model with their fourth-moment
+  offsets). Latent outcomes are allowed (the outcome's error variance
+  enters the moment correction). The dual-stage moderation is tested by the
+  Holm union over the joint-significance p of the three products a3*b1,
+  a1*b3, a3*b3 - the difference of the conditional indirect effect at
+  +/- 1 SD of W is zero iff all three are. The full-pipeline family-cluster
+  bootstrap holds every system's measurement rung at its full-sample value
+  (`boot_rung = "fixed"`) and reports percentile and basic intervals.
+* **What did not change.** Nothing in `mediate.R`: `dmsa_modmed()` is built
+  on the same `.med_measure()`, `.med_moments()`, `.med_reg()` and
+  `.med_fl()` (E14 sandwich pivot), and with every role a system,
+  `w_on = "a"` and `quadratic = FALSE` its numbers are exactly those of
+  `dmsa_mediate(model = "7")` - tested to 1e-12 on the coefficients and
+  bit-for-bit on the permutation p-values. Existing results are unaffected.
+* **Why.** The advanced-uses paper needs mixed observed/latent designs
+  (a questionnaire moderator on a latent mediator, a methylation outcome,
+  a dual-stage model) that `dmsa_mediate()` cannot express; the general
+  engine and its tests were derived in MATH_v1_general_modmed and gated
+  (GATE_REPORT_v3: level holds in every cell type; an omitted curvilinear
+  main effect produces a spurious interaction 55% of the time, which
+  `quadratic = TRUE` removes).
+* **Engine note (E16, not changed).** Plain mediation (`w = NULL`) with a
+  single predictor and no covariates leaves the a-path's reduced model
+  empty, which `.med_reg()` does not fit; `dmsa_modmed()` refuses with a
+  message asking for a covariate. `dmsa_mediate()` has the same edge.
+* Tests: `tests/testthat/test-modmed.R` (52 expectations).
+
 # dmsa 0.99.11
 
 ## `dmsa_mediate()`: the permutation pivot is now the errors-in-variables sandwich (engine finding E14)
