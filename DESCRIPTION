@@ -1,6 +1,6 @@
 Package: dmsa
 Title: Directional Methylation Set Analysis
-Version: 0.99.13
+Version: 0.99.14
 Authors@R: c(person("Tsachi", "Ein-Dor", role = c("aut", "cre", "fnd"),
     email = "teindor@runi.ac.il",
     comment = c(ORCID = "0000-0002-3078-7591")))
@@ -22,7 +22,7 @@ Encoding: UTF-8
 Depends: R (>= 4.3.0)
 Imports: stats, utils, methods, grDevices, graphics, data.table,
     SummarizedExperiment
-Suggests: testthat (>= 3.0.0), knitr, rmarkdown, gt, lme4, lmerTest, MASS,
+Suggests: testthat (>= 3.0.0), knitr, rmarkdown, gt, lme4, lmerTest, MASS, lavaan,
     nnet, viridisLite, beepr, png, Gviz, GenomicRanges, IRanges, GenomicFeatures,
     ensembldb, AnnotationDbi, AnnotationFilter
 biocViews: DNAMethylation, DifferentialMethylation, MethylationArray,
@@ -31,3 +31,4 @@ biocViews: DNAMethylation, DifferentialMethylation, MethylationArray,
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.1.0
+RoxygenNote: 8.1.0

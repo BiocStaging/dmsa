@@ -545,10 +545,21 @@
 #' @param methylation Optional samples x probes matrix aligned to
 #'   \code{data} rows (beta scale by default). When \code{NULL}, probe
 #'   columns are taken from \code{data} itself.
-#' @param map A \code{dmsa_sets()} cascade or anything it accepts
-#'   (default \code{"alpha"}).
+#' @param map \code{"auto"} (default since 0.99.14): cpgdirection pair
+#'   directions when the package is installed, the bundled Alpha snapshot
+#'   otherwise (recorded on the output as \code{$map_source} /
+#'   \code{$map_note}); \code{"alpha"} forces the snapshot; a
+#'   \code{dmsa_sets()} cascade or a direction-map data.frame as before.
 #' @param x Character vector of predictor system short names (1+).
-#' @param m Mediator system short name.
+#' @param m Mediator system short name(s); with several M the call is
+#'   handed to \code{\link{dmsa_modmed}} (parallel mediators).
+#' @param sex the sex column (measurement rule v1.2: residualised from the
+#'   tones and a covariate of every equation); \code{global_mean} adds the
+#'   array's global mean M-value the same way. \code{sex = NULL} /
+#'   \code{global_mean = FALSE} reproduce the 0.99.13 rule.
+#' @param tissue the tissue the cpgdirection map is resolved for.
+#' @param pairs \code{"cascade"} keeps only the selection cascade's CpG x
+#'   gene assignments from the cpgdirection map; \code{"all"} every pair.
 #' @param w Moderator system short name, or \code{NULL} for plain mediation.
 #' @param outcome Outcome column in \code{data}.
 #' @param covariates Character vector of covariate columns.
@@ -650,16 +661,17 @@
 #' fit$indices
 #' }
 #' @export
-dmsa_mediate <- function(data, methylation = NULL, map = "alpha",
+dmsa_mediate <- function(data, methylation = NULL, map = "auto",
                          x, m, w = NULL, outcome, covariates = character(),
                          measurement = c("tau", "congeneric", "single"),
                          min_module_probes = 3L, single_rel = NULL,
                          module_weights = c("equal", "sqrt_probes", "probes"),
-                         measure_covariates = NULL,
+                         measure_covariates = NULL, sex = NULL, global_mean = TRUE,
                          chip = NULL, block = NULL,
                          perm_blocks = c("none", "chip"),
                          model = c("7", "8"),
-                         map_level = c("full", "confidence"),
+                         map_level = c("full", "confidence"), tissue = "blood",
+                         pairs = c("cascade", "all"),
                          B = 1999L, boot = 0L, alpha_ssc = 0,
                          conditional_at = c(-1, 0, 1),
                          beta_input = TRUE, seed = NULL,
@@ -670,6 +682,18 @@ dmsa_mediate <- function(data, methylation = NULL, map = "alpha",
   model <- match.arg(model)
   map_level <- match.arg(map_level)
   module_weights <- match.arg(module_weights)
+  pairs <- match.arg(pairs)
+  ## 0.99.14: several PARALLEL mediators live in the general core;
+  ## dmsa_mediate() hands them over with its own model coding (several X
+  ## were always native here)
+  if (length(m) > 1L)
+    return(dmsa_modmed(data, methylation = methylation, map = map, x = x, m = m, w = w, y = outcome,
+                       w_on = "a", direct_moderation = identical(model, "8"), covariates = covariates,
+                       measurement = measurement, min_module_probes = min_module_probes, single_rel = single_rel,
+                       module_weights = module_weights, measure_covariates = measure_covariates, sex = sex,
+                       global_mean = global_mean, chip = chip, block = block, perm_blocks = perm_blocks,
+                       map_level = map_level, tissue = tissue, pairs = pairs, B = B, boot = boot, alpha_ssc = alpha_ssc,
+                       conditional_at = conditional_at, beta_input = beta_input, seed = seed, pivot = pivot, strata = strata))
   if (!is.null(seed)) {
     .old_seed <- if (exists(".Random.seed", envir = globalenv()))
       get(".Random.seed", envir = globalenv()) else NULL
@@ -686,8 +710,31 @@ dmsa_mediate <- function(data, methylation = NULL, map = "alpha",
     data <- data$data
   }
   data <- as.data.frame(data)
+  ## measurement rule v1.2 (0.99.14 default): sex + the global mean M-value
+  ## residualised from the tones AND in every equation; switches documented
+  .mcv0 <- if (is.null(measure_covariates)) covariates else measure_covariates
+  .gm <- if (isTRUE(global_mean)) .paths_global_mean(data, methylation, beta_input) else NULL
+  if (!is.null(.gm)) data[[".global_mean"]] <- .gm$value
+  if (!is.null(sex) && !sex %in% names(data)) stop("sex column '", sex, "' not in data", call. = FALSE)
+  .add <- c(if (!is.null(sex)) sex, if (!is.null(.gm)) ".global_mean")
+  covariates <- unique(c(covariates, .add)); measure_covariates <- unique(c(.mcv0, .add))
+  .rule <- sprintf("tones residualised on %s; equations carry %s",
+                   if (length(measure_covariates)) paste(sub("^\\.global_mean$", "global mean", measure_covariates), collapse = " + ") else "nothing",
+                   if (length(covariates)) paste(sub("^\\.global_mean$", "global mean", covariates), collapse = " + ") else "no covariates")
+  ## the direction source (0.99.14 default "auto": cpgdirection pairs when
+  ## installed, the bundled snapshot otherwise - recorded on the output)
+  .map_auto <- NULL; .map_source <- "bundled snapshot (coverage_v4_full)"; .map_note <- NULL
+  if (is.character(map) && length(map) == 1L && map %in% c("auto", "cpgdirection")) {
+    .avail <- if (is.null(methylation)) names(data) else colnames(methylation)
+    .mi <- .paths_map(map, .avail, tissue = tissue, map_level = map_level)
+    .map_auto <- .mi$mp; .map_source <- .mi$source; .map_note <- .mi$note; map <- "alpha"
+  }
   sets <- if (inherits(map, "dmsa_sets")) map else dmsa_sets(map)
   cas <- sets$cascade
+  if (!is.null(.map_auto) && pairs == "cascade" && !is.null(cas$cpg)) {
+    k <- paste(.map_auto$probe, .map_auto$gene) %in% paste(cas$cpg, cas$gene)
+    .map_source <- sprintf("%s; cascade pairs only (%d of %d)", .map_source, sum(k), nrow(.map_auto)); .map_auto <- .map_auto[k, , drop = FALSE]
+  }
 
   ## E8 fix (2026-08-29, PI-approved): REFUSE rather than silently substitute.
   ## A dmsa_sets object built from a CUSTOM cascade, or a cascade CSV path,
@@ -729,8 +776,7 @@ dmsa_mediate <- function(data, methylation = NULL, map = "alpha",
   keep <- stats::complete.cases(data[, need, drop = FALSE])
 
   ## -- the analysed direction map (dmsa_frame's authority) ------------------
-  maps <- .frame_maps(if (inherits(map, "dmsa_sets")) "alpha" else map)
-  mp <- maps[[map_level]]
+  mp <- if (!is.null(.map_auto)) .map_auto else .frame_maps(if (inherits(map, "dmsa_sets")) "alpha" else map)[[map_level]]
   mp$system_id <- as.character(mp$system_id)
 
   ## -- methylation matrix, M-value scale -----------------------------------
@@ -920,6 +966,8 @@ dmsa_mediate <- function(data, methylation = NULL, map = "alpha",
       ms[c("model", "p", "V", "omega", "determinacy", "lambda", "theta",
            "notes")]),
     coverage = do.call(rbind, coverage),
+    rule = .rule, map_source = .map_source, map_note = .map_note,
+    global_mean = if (is.null(.gm)) NULL else .gm$over,
     paths = core$paths, indices = core$indices,
     conditional = core$conditional, ci = ci,
     collinearity = core$collinearity,
@@ -936,6 +984,7 @@ print.dmsa_mediate <- function(x, ...) {
   cat(sprintf("  n = %d   B = %d permutations   blocks: %s   pivot: %s%s\n",
               x$n, x$B, x$perm_blocks, x$pivot %||% "homoscedastic",
               if (!is.null(x$strata)) paste0("   strata: ", x$strata) else ""))
+  if (!is.null(x$rule)) cat("  rule: ", x$rule, "\n  map:  ", x$map_source, if (!is.null(x$map_note)) paste0(" (", x$map_note, ")") else "", "\n", sep = "")
   cat("  measurement (per system):\n")
   for (s in names(x$measurement)) {
     ms <- x$measurement[[s]]

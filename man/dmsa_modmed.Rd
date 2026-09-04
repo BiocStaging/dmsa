@@ -7,7 +7,7 @@
 dmsa_modmed(
   data,
   methylation = NULL,
-  map = "alpha",
+  map = "auto",
   x,
   m,
   w = NULL,
@@ -23,10 +23,16 @@ dmsa_modmed(
   single_rel = NULL,
   module_weights = c("equal", "sqrt_probes", "probes"),
   measure_covariates = NULL,
+  sex = NULL,
+  global_mean = TRUE,
   chip = NULL,
   block = NULL,
   perm_blocks = c("none", "chip"),
   map_level = c("full", "confidence"),
+  tissue = "blood",
+  module_score = c("aligned", "majority"),
+  anchor = NULL,
+  pairs = c("cascade", "all"),
   B = 1999L,
   boot = 0L,
   boot_rung = c("fixed", "ladder"),
@@ -35,7 +41,10 @@ dmsa_modmed(
   beta_input = TRUE,
   seed = NULL,
   pivot = c("hc", "homoscedastic"),
-  strata = NULL
+  strata = NULL,
+  theta_mm = c("auto", "none"),
+  sensitivities = NULL,
+  B_sens = 1999L
 )
 }
 \arguments{
@@ -45,19 +54,21 @@ dmsa_modmed(
 \code{data} rows (beta scale by default). When \code{NULL}, probe
 columns are taken from \code{data} itself.}
 
-\item{map}{A \code{dmsa_sets()} cascade or anything it accepts
-(default \code{"alpha"}).}
+\item{map}{\code{"auto"} (default): cpgdirection pair directions when the
+package is installed, the bundled Alpha snapshot otherwise (recorded on
+the output); \code{"alpha"} forces the snapshot; a data.frame is a user
+map.}
 
-\item{x, m, w, y}{Character scalars: a system short name (see
-\code{dmsa_systems()}) or a column of \code{data}. \code{w = NULL} is
-plain mediation.}
+\item{x, m, w, y}{Character: a system short name (see \code{dmsa_systems()})
+or a column of \code{data}. \code{x} and \code{m} may be vectors;
+\code{w = NULL} is plain mediation.}
 
 \item{roles}{Optional named character vector over \code{c("x","m","w","y")}
 with values \code{"latent"} (a system measured by the ladder; the
 default for systems), \code{"composite"} (a system as a single-indicator
 composite, or a column, at the fixed reliability \code{composite_rel}),
 or \code{"observed"} (a column treated as error-free; the default for
-columns).}
+columns). A role applies to every variable of that letter.}
 
 \item{composite_rel}{Reliability for \code{"composite"} roles: a single
 value or a vector named by role (\code{x}, \code{m}, ...). The
@@ -107,6 +118,10 @@ pre-adjustment). \code{NULL} (default) uses \code{covariates};
 only through the structural covariates); a subset (e.g. the cell
 fractions alone) brackets the under-/over-adjustment trade-off.}
 
+\item{sex}{the sex column (rule v1.2); \code{global_mean} adds the global
+mean M-value (over the \code{methylation} matrix, or over every cg-site
+column of \code{data}).}
+
 \item{chip}{Optional column in \code{data} naming the array chip. When
 given, module tones are chip-quasi-demeaned (REML, R/ranef.R) BEFORE
 the measurement stage, and outcome/covariates before the structural
@@ -128,6 +143,17 @@ scheme; both are available so the gate can be run.}
 \item{map_level}{\code{"full"} or \code{"confidence"} - which analysed
 direction-map level supplies the probe universe (as in
 \code{dmsa_frame()}); module membership joins from the cascade by gene.}
+
+\item{tissue}{the tissue the cpgdirection map is resolved for.}
+
+\item{module_score}{\code{"aligned"} (the package rule: the
+direction-weighted expected score) or \code{"majority"} (the v12 tone of
+the 2026i proofs of concept); \code{anchor} an optional named vector of
+the module placed first per system; \code{pairs} \code{"cascade"}
+(only the selection cascade's CpG x gene assignments) or \code{"all"}.}
+
+\item{pairs}{\code{"cascade"} keeps only the selection cascade's CpG x
+gene assignments from the cpgdirection map; \code{"all"} every pair.}
 
 \item{B}{Permutations per path.}
 
@@ -166,29 +192,54 @@ disturbance the E14 interaction test ran at .09-.10; the HC pivot holds
 block must lie inside one stratum); without \code{block}, residuals
 permute within stratum. The registered use is the after-wave of the
 before/after builds.}
+
+\item{theta_mm}{\code{"auto"} fits the connected measurement of every
+pair of latent mediators (lavaan) and applies theta_MM by the .10 rule;
+\code{"none"} skips it.}
+
+\item{sensitivities}{a character vector among \code{"homoscedastic"}
+(pivot), \code{"unrestricted"} (no blocks), \code{"composite_rel"}
+(every system as a .70 composite), \code{"quadratic"} (the safeguard),
+\code{"global_mean_off"} (rule v1.1): each is re-run at \code{B_sens}
+permutations and returned as one table (\code{$sensitivities}).}
 }
 \value{
 An object of class \code{dmsa_modmed}: the roles and their
   measurement, the paths (a-, b- and direct c-prime terms), the
-  indices (\code{IE}, \code{IMM}), the conditional indirect effect over
-  \code{conditional_at}, the collinearity diagnostics, the moment guard,
-  and (with \code{boot > 0}) percentile and basic bootstrap intervals.
+  indices (\code{IE}, \code{IMM}, per X -> M pair when vectors), the
+  conditional indirect effect over \code{conditional_at}, the
+  collinearity diagnostics, the moment guard, the connected-measurement
+  record, the sensitivity table, and (with \code{boot > 0}) percentile
+  and basic bootstrap intervals.
 }
 \description{
-The general form of \code{\link{dmsa_mediate}}: each of the predictor
-\code{x}, the mediator \code{m}, the moderator \code{w} and the outcome
+The general form of \code{\link{dmsa_mediate}}: each of the predictor(s)
+\code{x}, the mediator(s) \code{m}, the moderator \code{w} and the outcome
 \code{y} is EITHER a methylation system (measured as a latent tone by the
 ladder, or as a fixed-reliability composite) OR a column of \code{data}
 (observed, or a fixed-reliability questionnaire composite). The moderator
 can act on the a-path (Hayes model 7), the b-path (model 14) or both
 (model 58, dual stage), with an optional direct-effect moderation (models
-8 / 15 / 59). Estimation is the corrected-moments (SAM / Croon) engine of
-\code{dmsa_mediate}: latent products and, with \code{quadratic = TRUE},
-squares receive their fourth-moment offsets; inference is Freedman-Lane
-per path with the errors-in-variables sandwich pivot and family-block
-exchange; the dual-stage moderation is tested by the Holm union over the
-joint-significance p of the three products (the difference of the
-conditional indirect effect at +/- 1 SD of W is zero iff all three are).
-With every role a system, \code{w_on = "a"} and \code{quadratic = FALSE}
-the numbers are exactly those of \code{dmsa_mediate(model = "7")}.
+8 / 15 / 59). \code{x} and \code{m} may be vectors: several predictors
+and several PARALLEL mediators (one M-model per mediator, one Y-model),
+every X_i -> M_j -> Y product tested by joint significance with Holm over
+the products, and - with two or more latent mediators - the connected
+measurement of the mediators (MATH 1.7, \code{theta_mm}). Estimation is
+the corrected-moments (SAM / Croon) engine of \code{dmsa_mediate}: latent
+products and, with \code{quadratic = TRUE}, squares receive their
+fourth-moment offsets; inference is Freedman-Lane per path with the
+errors-in-variables sandwich pivot and family-block exchange; the
+dual-stage moderation is tested by the Holm union over the
+joint-significance p of the three products. With every role a system,
+\code{w_on = "a"} and \code{quadratic = FALSE} the numbers are exactly
+those of \code{dmsa_mediate(model = "7")}.
+}
+\details{
+Measurement rule v1.2 (the package default since 0.99.14): every module
+tone is chip quasi-demeaned and residualised on \code{measure_covariates}
+(the technical terms; \code{NULL} = \code{covariates}) PLUS the
+\code{sex} column PLUS the array's global mean M-value, and sex and the
+global mean also enter every equation as covariates. \code{sex = NULL} /
+\code{global_mean = FALSE} switch the additions off; \code{$rule} says
+which rule ran.
 }

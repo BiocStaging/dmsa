@@ -202,33 +202,49 @@
 
 #' General moderated mediation over observed and latent roles
 #'
-#' The general form of \code{\link{dmsa_mediate}}: each of the predictor
-#' \code{x}, the mediator \code{m}, the moderator \code{w} and the outcome
+#' The general form of \code{\link{dmsa_mediate}}: each of the predictor(s)
+#' \code{x}, the mediator(s) \code{m}, the moderator \code{w} and the outcome
 #' \code{y} is EITHER a methylation system (measured as a latent tone by the
 #' ladder, or as a fixed-reliability composite) OR a column of \code{data}
 #' (observed, or a fixed-reliability questionnaire composite). The moderator
 #' can act on the a-path (Hayes model 7), the b-path (model 14) or both
 #' (model 58, dual stage), with an optional direct-effect moderation (models
-#' 8 / 15 / 59). Estimation is the corrected-moments (SAM / Croon) engine of
-#' \code{dmsa_mediate}: latent products and, with \code{quadratic = TRUE},
-#' squares receive their fourth-moment offsets; inference is Freedman-Lane
-#' per path with the errors-in-variables sandwich pivot and family-block
-#' exchange; the dual-stage moderation is tested by the Holm union over the
-#' joint-significance p of the three products (the difference of the
-#' conditional indirect effect at +/- 1 SD of W is zero iff all three are).
-#' With every role a system, \code{w_on = "a"} and \code{quadratic = FALSE}
-#' the numbers are exactly those of \code{dmsa_mediate(model = "7")}.
+#' 8 / 15 / 59). \code{x} and \code{m} may be vectors: several predictors
+#' and several PARALLEL mediators (one M-model per mediator, one Y-model),
+#' every X_i -> M_j -> Y product tested by joint significance with Holm over
+#' the products, and - with two or more latent mediators - the connected
+#' measurement of the mediators (MATH 1.7, \code{theta_mm}). Estimation is
+#' the corrected-moments (SAM / Croon) engine of \code{dmsa_mediate}: latent
+#' products and, with \code{quadratic = TRUE}, squares receive their
+#' fourth-moment offsets; inference is Freedman-Lane per path with the
+#' errors-in-variables sandwich pivot and family-block exchange; the
+#' dual-stage moderation is tested by the Holm union over the
+#' joint-significance p of the three products. With every role a system,
+#' \code{w_on = "a"} and \code{quadratic = FALSE} the numbers are exactly
+#' those of \code{dmsa_mediate(model = "7")}.
+#'
+#' Measurement rule v1.2 (the package default since 0.99.14): every module
+#' tone is chip quasi-demeaned and residualised on \code{measure_covariates}
+#' (the technical terms; \code{NULL} = \code{covariates}) PLUS the
+#' \code{sex} column PLUS the array's global mean M-value, and sex and the
+#' global mean also enter every equation as covariates. \code{sex = NULL} /
+#' \code{global_mean = FALSE} switch the additions off; \code{$rule} says
+#' which rule ran.
 #'
 #' @inheritParams dmsa_mediate
-#' @param x,m,w,y Character scalars: a system short name (see
-#'   \code{dmsa_systems()}) or a column of \code{data}. \code{w = NULL} is
-#'   plain mediation.
+#' @param x,m,w,y Character: a system short name (see \code{dmsa_systems()})
+#'   or a column of \code{data}. \code{x} and \code{m} may be vectors;
+#'   \code{w = NULL} is plain mediation.
+#' @param map \code{"auto"} (default): cpgdirection pair directions when the
+#'   package is installed, the bundled Alpha snapshot otherwise (recorded on
+#'   the output); \code{"alpha"} forces the snapshot; a data.frame is a user
+#'   map.
 #' @param roles Optional named character vector over \code{c("x","m","w","y")}
 #'   with values \code{"latent"} (a system measured by the ladder; the
 #'   default for systems), \code{"composite"} (a system as a single-indicator
 #'   composite, or a column, at the fixed reliability \code{composite_rel}),
 #'   or \code{"observed"} (a column treated as error-free; the default for
-#'   columns).
+#'   columns). A role applies to every variable of that letter.
 #' @param composite_rel Reliability for \code{"composite"} roles: a single
 #'   value or a vector named by role (\code{x}, \code{m}, ...). The
 #'   registered choice for a methylation composite is .70.
@@ -240,32 +256,55 @@
 #'   Gate v3: an omitted curvilinear main effect of the size of the paths
 #'   produces a spurious interaction 55\% of the time; with the squares the
 #'   level is nominal. An interaction claim should survive this.
+#' @param sex the sex column (rule v1.2); \code{global_mean} adds the global
+#'   mean M-value (over the \code{methylation} matrix, or over every cg-site
+#'   column of \code{data}).
+#' @param tissue the tissue the cpgdirection map is resolved for.
+#' @param module_score \code{"aligned"} (the package rule: the
+#'   direction-weighted expected score) or \code{"majority"} (the v12 tone of
+#'   the 2026i proofs of concept); \code{anchor} an optional named vector of
+#'   the module placed first per system; \code{pairs} \code{"cascade"}
+#'   (only the selection cascade's CpG x gene assignments) or \code{"all"}.
+#' @param theta_mm \code{"auto"} fits the connected measurement of every
+#'   pair of latent mediators (lavaan) and applies theta_MM by the .10 rule;
+#'   \code{"none"} skips it.
+#' @param sensitivities a character vector among \code{"homoscedastic"}
+#'   (pivot), \code{"unrestricted"} (no blocks), \code{"composite_rel"}
+#'   (every system as a .70 composite), \code{"quadratic"} (the safeguard),
+#'   \code{"global_mean_off"} (rule v1.1): each is re-run at \code{B_sens}
+#'   permutations and returned as one table (\code{$sensitivities}).
 #' @param boot_rung \code{"fixed"} holds every system's measurement rung at
 #'   its full-sample value inside the bootstrap and re-estimates loadings
 #'   only; \code{"ladder"} reruns the ladder per draw.
 #' @return An object of class \code{dmsa_modmed}: the roles and their
 #'   measurement, the paths (a-, b- and direct c-prime terms), the
-#'   indices (\code{IE}, \code{IMM}), the conditional indirect effect over
-#'   \code{conditional_at}, the collinearity diagnostics, the moment guard,
-#'   and (with \code{boot > 0}) percentile and basic bootstrap intervals.
+#'   indices (\code{IE}, \code{IMM}, per X -> M pair when vectors), the
+#'   conditional indirect effect over \code{conditional_at}, the
+#'   collinearity diagnostics, the moment guard, the connected-measurement
+#'   record, the sensitivity table, and (with \code{boot > 0}) percentile
+#'   and basic bootstrap intervals.
 #' @export
-dmsa_modmed <- function(data, methylation = NULL, map = "alpha",
+dmsa_modmed <- function(data, methylation = NULL, map = "auto",
                         x, m, w = NULL, y, roles = NULL, composite_rel = 0.70,
                         w_on = c("both", "a", "b"), direct_moderation = FALSE,
                         quadratic = FALSE, covariates = character(),
                         measurement = c("congeneric", "tau", "single"),
                         min_module_probes = 3L, single_rel = NULL,
                         module_weights = c("equal", "sqrt_probes", "probes"),
-                        measure_covariates = NULL, chip = NULL, block = NULL,
+                        measure_covariates = NULL, sex = NULL, global_mean = TRUE,
+                        chip = NULL, block = NULL,
                         perm_blocks = c("none", "chip"),
-                        map_level = c("full", "confidence"),
+                        map_level = c("full", "confidence"), tissue = "blood",
+                        module_score = c("aligned", "majority"), anchor = NULL, pairs = c("cascade", "all"),
                         B = 1999L, boot = 0L, boot_rung = c("fixed", "ladder"),
                         alpha_ssc = 0, conditional_at = c(-1, 0, 1),
                         beta_input = TRUE, seed = NULL,
-                        pivot = c("hc", "homoscedastic"), strata = NULL) {
+                        pivot = c("hc", "homoscedastic"), strata = NULL,
+                        theta_mm = c("auto", "none"), sensitivities = NULL, B_sens = 1999L) {
   measurement <- match.arg(measurement); perm_blocks <- match.arg(perm_blocks); pivot <- match.arg(pivot)
-  map_level <- match.arg(map_level); module_weights <- match.arg(module_weights)
-  w_on <- match.arg(w_on); boot_rung <- match.arg(boot_rung)
+  map_level <- match.arg(map_level); module_weights <- match.arg(module_weights); module_score <- match.arg(module_score); pairs <- match.arg(pairs)
+  w_on <- match.arg(w_on); boot_rung <- match.arg(boot_rung); theta_mm <- match.arg(theta_mm)
+  .args <- mget(setdiff(names(formals(dmsa_modmed)), "sensitivities"))
   if (is.null(w)) { w_on <- "a"; direct_moderation <- FALSE }   # plain mediation
   if (!is.null(seed)) {
     .old_seed <- if (exists(".Random.seed", envir = globalenv())) get(".Random.seed", envir = globalenv()) else NULL
@@ -273,22 +312,23 @@ dmsa_modmed <- function(data, methylation = NULL, map = "alpha",
             else if (exists(".Random.seed", envir = globalenv())) rm(".Random.seed", envir = globalenv()), add = TRUE)
     set.seed(seed)
   }
+  cl <- match.call()
   if (inherits(data, "dmsa_import")) { if (is.null(methylation)) methylation <- data$methylation; data <- data$data }
   data <- as.data.frame(data)
-  sets <- if (inherits(map, "dmsa_sets")) map else dmsa_sets(map)
-  cas <- sets$cascade
-  .map_ok <- identical(map, "alpha") ||
-    (is.data.frame(map) && all(c("probe", "column", "gene", "system_id", "best_direction") %in% names(map))) ||
-    (inherits(map, "dmsa_sets") && identical(attr(map, "source") %||% map$source %||% "", .cas_builtin("cascade") %||% "__none__"))
-  if (!.map_ok) stop("`map` carries module membership but no probe directions; pass map = \"alpha\" explicitly or a direction-map data.frame", call. = FALSE)
+  if (inherits(map, "dmsa_sets")) map <- "alpha"
+  if (!(is.data.frame(map) || (is.character(map) && length(map) == 1L && map %in% c("auto", "alpha", "cpgdirection"))))
+    stop("`map` must be \"auto\", \"alpha\", \"cpgdirection\" or a direction-map data.frame", call. = FALSE)
+  cas <- dmsa_sets("alpha")$cascade
 
   ## -- roles ----------------------------------------------------------------
-  rn <- c("x", "m", if (!is.null(w)) "w", "y")
-  vals <- c(x = x, m = m, if (!is.null(w)) c(w = w), y = y)
+  x <- as.character(x); m <- as.character(m); y <- as.character(y); if (!is.null(w)) w <- as.character(w)
+  if (length(y) != 1L || (!is.null(w) && length(w) != 1L)) stop("y and w must be single names", call. = FALSE)
+  letter <- c(stats::setNames(rep("x", length(x)), x), stats::setNames(rep("m", length(m)), m), if (!is.null(w)) stats::setNames("w", w), stats::setNames("y", y))
+  vals <- names(letter)
   if (anyDuplicated(vals)) stop("x, m, w and y must be distinct", call. = FALSE)
   allsys <- unique(cas$system_short)
-  spec <- lapply(rn, function(r) {
-    v <- vals[[r]]; kind <- if (v %in% allsys) "system" else if (v %in% names(data)) "column" else
+  spec <- lapply(vals, function(v) {
+    r <- letter[[v]]; kind <- if (v %in% allsys) "system" else if (v %in% names(data)) "column" else
       stop("'", v, "' is neither a system short name nor a column of data", call. = FALSE)
     role <- if (!is.null(roles) && r %in% names(roles)) roles[[r]] else if (kind == "system") "latent" else "observed"
     if (!role %in% c("latent", "composite", "observed")) stop("roles must be 'latent', 'composite' or 'observed'", call. = FALSE)
@@ -299,74 +339,38 @@ dmsa_modmed <- function(data, methylation = NULL, map = "alpha",
   names(spec) <- vals
   crel <- if (length(composite_rel) == 1L && is.null(names(composite_rel))) stats::setNames(rep(composite_rel, length(vals)), vals) else {
     cr <- stats::setNames(rep(NA_real_, length(vals)), vals)
-    for (r in names(composite_rel)) if (r %in% rn) cr[[vals[[r]]]] <- composite_rel[[r]]
+    for (r in names(composite_rel)) cr[letter == r] <- composite_rel[[r]]
     cr }
   for (v in vals) if (spec[[v]]$role == "composite" && !is.finite(crel[[v]]))
     stop("composite_rel needed for role '", v, "'", call. = FALSE)
   systems <- vals[vapply(spec, function(s) s$kind == "system", logical(1))]
   columns <- vals[vapply(spec, function(s) s$kind == "column", logical(1))]
+  if (!is.null(block) && perm_blocks == "chip") stop("`block` and perm_blocks = 'chip' cannot be combined", call. = FALSE)
 
-  ## -- complete cases -------------------------------------------------------
-  if (!is.null(block) && perm_blocks == "chip")
-    stop("`block` and perm_blocks = 'chip' cannot be combined", call. = FALSE)
-  need <- c(columns, covariates, chip, block, strata)
-  miss <- setdiff(need, names(data))
-  if (length(miss)) stop("column(s) not in data: ", paste(miss, collapse = ", "), call. = FALSE)
-  keep <- stats::complete.cases(data[, need, drop = FALSE])
-  maps <- .frame_maps(if (inherits(map, "dmsa_sets")) "alpha" else map)
-  mp <- maps[[map_level]]; mp$system_id <- as.character(mp$system_id)
-  ME <- NULL
-  if (length(systems)) {
-    ME <- if (is.null(methylation)) {
-      pc <- intersect(unique(c(mp$probe, mp$column)), names(data))
-      if (!length(pc)) stop("no map probes found among data columns; pass `methylation`", call. = FALSE)
-      as.matrix(data[, pc, drop = FALSE])
-    } else as.matrix(methylation)
-    if (nrow(ME) != nrow(data)) stop("methylation has ", nrow(ME), " rows but data has ", nrow(data), call. = FALSE)
-    mode(ME) <- "numeric"
-    if (beta_input) ME <- dmsa_mvalues(ME)
-    ME <- ME[keep, , drop = FALSE]
-  }
-  data <- data[keep, , drop = FALSE]
-  n <- nrow(data)
-  if (n < 30L) stop("only ", n, " complete rows; this engine is not built for n < 30", call. = FALSE)
-
-  ## -- tones per system (chip demeaned, composition residualised) ---------
-  chipv <- if (!is.null(chip)) as.factor(data[[chip]]) else NULL
-  sysid <- stats::setNames(as.character(sets$systems$system_id), sets$systems$system_short)
-  pol_tab <- if (inherits(sets$polarity, "dmsa_polarity")) sets$polarity$polarity else sets$polarity
-  mcv <- if (is.null(measure_covariates)) covariates else measure_covariates
-  CVres <- if (length(mcv)) { CV <- cbind(1, as.matrix(data[, mcv, drop = FALSE])); mode(CV) <- "numeric"
-    if (all(is.finite(CV))) CV else NULL } else NULL
-  tones <- list(); coverage <- list()
-  for (s in systems) {
-    tt <- .mm_tones(s, ME, mp, cas, sysid, pol_tab, min_module_probes, module_weights, chipv, CVres)
-    tones[[s]] <- tt$tones; coverage[[s]] <- tt$coverage
-  }
-
-  ## -- chip transform for columns and covariates ----------------------------
-  dat2 <- data
-  if (!is.null(chipv)) {
-    nc <- as.numeric(table(chipv)); names(nc) <- levels(chipv)
-    gi <- as.character(chipv); X0 <- matrix(1, n, 1)
-    for (v in c(columns, covariates)) {
-      vv <- as.numeric(dat2[[v]])
-      gam <- tryCatch(.ri_reml(vv, X0, chipv), error = function(e) 0)
-      if (gam > 0) dat2[[v]] <- as.numeric(.ri_transform(cbind(vv), chipv, nc, gi, gam))
-    }
-  }
-  blockv <- if (!is.null(block)) as.factor(data[[block]]) else NULL
+  ## -- the frame: complete cases, map, rule v1.2, tones, chip transform ----
+  st <- .paths_setup(data, methylation, map = map, systems = systems, columns = columns, covariates = covariates,
+                     measure_covariates = measure_covariates, sex = sex, global_mean = global_mean, chip = chip, block = block,
+                     strata = strata, beta_input = beta_input, tissue = tissue, map_level = map_level,
+                     min_module_probes = min_module_probes, module_weights = module_weights, module_score = module_score,
+                     anchor = anchor, pairs = pairs)
+  n <- st$n; tones <- st$tones; dat2 <- st$dat2; chipv <- st$chipv; blockv <- st$blocks; covM <- st$covM; covariates <- st$covariates
   blocks <- if (!is.null(blockv)) blockv else if (perm_blocks == "chip") {
     if (is.null(chipv)) stop("perm_blocks = 'chip' needs `chip`", call. = FALSE); chipv } else NULL
   bmode <- if (!is.null(blockv)) "exchange" else "within"
-  stratav <- if (!is.null(strata)) as.factor(data[[strata]]) else NULL
-  covM <- if (length(covariates)) { M <- as.matrix(dat2[, covariates, drop = FALSE]); mode(M) <- "numeric"; M } else NULL
+  stratav <- st$stratav
+  covn <- sub("^\\.global_mean$", "global_mean", covariates); if (!is.null(covM)) colnames(covM) <- covn
 
   ## -- measurement and structural stage ---------------------------------
   meas <- lapply(vals, function(v) .mm_measure_role(v, spec[[v]], tones, dat2, measurement, single_rel, crel, n))
   names(meas) <- vals
-  core <- .mm_core(meas, x, m, w, y, w_on, direct_moderation, quadratic, covM, covariates,
-                   B, blocks, bmode, conditional_at, alpha_ssc, pivot = pivot, strata = stratav)
+  thm <- NULL
+  latm <- m[vapply(m, function(v) spec[[v]]$kind == "system" && spec[[v]]$role == "latent", logical(1))]
+  if (theta_mm == "auto" && length(latm) >= 2L) {
+    thm <- list(); pr <- utils::combn(latm, 2, simplify = FALSE)
+    for (p2 in pr) thm[[paste(p2, collapse = ",")]] <- .mm_theta_connected(tones[[p2[1]]], tones[[p2[2]]], meas[[p2[1]]], meas[[p2[2]]], p2)
+  }
+  core <- .mm_core_v(meas, x, m, w, y, w_on, direct_moderation, quadratic, covM, covn,
+                     B, blocks, bmode, conditional_at, alpha_ssc, pivot = pivot, strata = stratav, theta_mm = thm)
 
   ## -- full-pipeline bootstrap, rung fixed ---------------------------------
   ci <- NULL
@@ -386,8 +390,8 @@ dmsa_modmed <- function(data, methylation = NULL, map = "alpha",
         mb <- lapply(vals, function(v) .mm_measure_role(v, spec[[v]], tb, dat2[ix, , drop = FALSE], measurement, single_rel, crel, length(ix), rung = rungs[[v]]))
         names(mb) <- vals
         stepped <- stepped + any(vapply(vals, function(v) !is.null(rungs[[v]]) && mb[[v]]$model != rungs[[v]], logical(1)))
-        .mm_core(mb, x, m, w, y, w_on, direct_moderation, quadratic, if (is.null(covM)) NULL else covM[ix, , drop = FALSE], covariates,
-                 0L, NULL, "within", conditional_at, alpha_ssc)
+        .mm_core_v(mb, x, m, w, y, w_on, direct_moderation, quadratic, if (is.null(covM)) NULL else covM[ix, , drop = FALSE], covn,
+                   0L, NULL, "within", conditional_at, alpha_ssc, theta_mm = thm)
       }, error = function(e) NULL)
       if (!is.null(cc)) { eb <- est_of(cc); BM[bb, names(eb)] <- eb }
     }
@@ -397,15 +401,38 @@ dmsa_modmed <- function(data, methylation = NULL, map = "alpha",
                estimate = obs, n_ok = sum(ok), draws = boot, rung = boot_rung, stepped = stepped)
   }
 
+  ## -- the sensitivity battery: the same call, one change each, at B_sens ---
+  sens <- NULL
+  if (length(sensitivities)) {
+    sensitivities <- match.arg(sensitivities, c("homoscedastic", "unrestricted", "composite_rel", "quadratic", "global_mean_off"), several.ok = TRUE)
+    base <- .args; base$boot <- 0L; base$B <- B_sens
+    rows <- list()
+    for (sv in sensitivities) {
+      a <- base
+      if (sv == "homoscedastic") a$pivot <- "homoscedastic"
+      if (sv == "unrestricted") { a$block <- NULL; a$perm_blocks <- "none" }
+      if (sv == "composite_rel") { a$roles <- c(x = "composite", m = "composite", w = "composite", y = "composite")[unique(letter)]
+        for (v in vals) if (spec[[v]]$kind == "column" && spec[[v]]$role == "observed") a$roles[letter[[v]]] <- "observed"; a$composite_rel <- composite_rel }
+      if (sv == "quadratic") a$quadratic <- TRUE
+      if (sv == "global_mean_off") a$global_mean <- FALSE
+      f <- tryCatch(do.call(dmsa_modmed, a), error = function(e) NULL)
+      if (is.null(f)) { rows[[sv]] <- data.frame(model = sv, term = NA_character_, estimate = NA_real_, p = NA_real_, stringsAsFactors = FALSE); next }
+      rows[[sv]] <- rbind(data.frame(model = sv, term = names(f$paths), estimate = vapply(f$paths, function(p) p$b, numeric(1)), p = vapply(f$paths, function(p) p$p, numeric(1)), stringsAsFactors = FALSE),
+                          data.frame(model = sv, term = names(f$indices), estimate = vapply(f$indices, function(i) i$est, numeric(1)), p = vapply(f$indices, function(i) i$p_js, numeric(1)), stringsAsFactors = FALSE))
+    }
+    sens <- do.call(rbind, rows); rownames(sens) <- NULL; attr(sens, "B") <- B_sens
+  }
+
   structure(list(
-    call = match.call(), n = n, B = B, x = x, m = m, w = w, y = y, w_on = w_on,
+    call = cl, n = n, B = B, x = x, m = m, w = w, y = y, w_on = w_on,
     direct_moderation = direct_moderation, quadratic = quadratic,
     roles = stats::setNames(vapply(vals, function(v) meas[[v]]$role, character(1)), vals),
     measurement = stats::setNames(lapply(meas, function(ms) ms[intersect(c("kind", "role", "model", "p", "V", "omega", "determinacy", "lambda", "theta", "notes"), names(ms))]), vals),
-    coverage = if (length(coverage)) do.call(rbind, coverage) else NULL,
+    coverage = st$coverage, rule = st$rule, map_source = st$map_source, map_note = st$map_note, global_mean = st$global_mean,
     paths = core$paths, indices = core$indices, conditional = core$conditional,
     estimates = core$estimates, terms = core$terms, ci = ci,
-    collinearity = core$collinearity,
+    collinearity = core$collinearity, theta_mm = thm, theta_applied = core$theta_applied,
+    sensitivities = sens,
     perm_blocks = if (!is.null(blockv)) "family-exchange" else perm_blocks,
     pivot = pivot, strata = strata,
     moments = list(shrink = core$moments$shrink, lambda_triggered = core$moments$lambda_triggered)),
@@ -418,6 +445,7 @@ print.dmsa_modmed <- function(x, ...) {
   if (is.null(x$w)) stage <- "plain mediation"
   cat("General O/L moderated mediation - ", stage, if (x$direct_moderation) " + direct-effect moderation" else "", if (x$quadratic) " + quadratic safeguard" else "", "\n", sep = "")
   cat(sprintf("  n = %d   B = %d permutations   blocks: %s   pivot: %s%s\n", x$n, x$B, x$perm_blocks, x$pivot, if (!is.null(x$strata)) paste0("   strata: ", x$strata) else ""))
+  if (!is.null(x$rule)) cat("  rule: ", x$rule, "\n  map:  ", x$map_source, if (!is.null(x$map_note)) paste0(" (", x$map_note, ")") else "", "\n", sep = "")
   cat("  roles:\n")
   for (v in names(x$roles)) {
     ms <- x$measurement[[v]]
@@ -437,8 +465,13 @@ print.dmsa_modmed <- function(x, ...) {
     cat(sprintf("    %-6s est = %+.4f  p = %.4f   %s\n", nm, i$est, i$p_js, i$kind))
     if (!is.null(i$products)) for (k in names(i$products))
       cat(sprintf("      %-5s %+.4f  p_js = %.4f  p_holm = %.4f\n", k, i$products[[k]], i$p_products[[k]], i$p_holm[[k]])) }
-  if (!is.null(x$w)) { cat("  conditional indirect effect:\n"); for (i in seq_len(nrow(x$conditional)))
-    cat(sprintf("    W = %+.1f SD   theta = %+.4f\n", x$conditional$w_sd[i], x$conditional$indirect[i])) }
+  if (!is.null(x$theta_mm)) for (k in names(x$theta_mm)) { th <- x$theta_mm[[k]]
+    cat(sprintf("  connected measurement %s: theta %.3f (ratio %.2f, phi %.2f) - %s\n", k, th$theta, th$ratio, th$phi, th$note)) }
+  if (!is.null(x$w)) { cat("  conditional indirect effect:\n"); cd <- x$conditional; for (i in seq_len(nrow(cd)))
+    cat(sprintf("    %sW = %+.1f SD   theta = %+.4f\n", if ("x" %in% names(cd)) sprintf("%s -> %s   ", cd$x[i], cd$m[i]) else "", cd$w_sd[i], cd$indirect[i])) }
+  if (!is.null(x$sensitivities)) { cat(sprintf("  sensitivities (B = %d):\n", attr(x$sensitivities, "B"))); sn <- x$sensitivities
+    for (md in unique(sn$model)) { k <- sn$model == md & !is.na(sn$term) & grepl("^(IE|IMM)", sn$term)
+      cat(sprintf("    %-16s %s\n", md, if (any(k)) paste(sprintf("%s %+.3f (p %.3f)", sn$term[k], sn$estimate[k], sn$p[k]), collapse = "; ") else "failed")) } }
   if (!is.null(x$ci))
     cat(sprintf("  bootstrap: %d/%d full-pipeline resamples usable, rung %s%s (percentile and basic CIs stored)\n",
                 x$ci$n_ok, x$ci$draws, x$ci$rung, if (x$ci$stepped) sprintf(", %d draws stepped down a rung", x$ci$stepped) else ""))

@@ -1,3 +1,108 @@
+# dmsa 0.99.14
+
+## The four path methods of paper 3, in the package: `dmsa_transmit()`, `dmsa_concordance()`, vector roles in `dmsa_modmed()` / `dmsa_mediate()`, measurement rule v1.2, the cpgdirection default (API proposal v1.1, PI rulings 0-5 of 2026-09-04; engine untouched)
+
+* **`dmsa_transmit(child, parents, ...)` - system to system as the full
+  DMSA hierarchy on both ends.** Not a system-score regression (PI rule
+  2026-09-05): every unit of a system is scored at probe (the CpG M-value,
+  observed), gene (the aligned `dmsa_scores()` expected score, composite
+  at `composite_rel`), module (the module tone, composite) and system (the
+  ladder) level on BOTH frames under the same measurement rule, and the
+  estimand per unit is the paired slope `child_u ~ mother_u + father_u +
+  covariates` (the child's contract plus the three arrays' global means).
+  The test is the engine's HC errors-in-variables statistic (the E15
+  pivot of `.med_fl()`) on ONE shared family-block permutation stream, so
+  that maxT within the level-local family (all units of the system at
+  that level, as `dmsa_levels()`) is exact - and, because the stream is
+  shared, a tree-wide maxT over all units of all four levels, `p_tree`,
+  gives one exact FWER per system for "anything named anywhere". Father
+  beside mother throughout; the print says whether a named unit is a
+  locus, a gene / module carried by one parent, or a tone, and reads a
+  father effect of the mother's size or larger as "not intrauterine"
+  (genotype, household or the paternal germline remain - the contrast
+  cannot separate those in a pre-conception cohort, Kitaba 2023). Two
+  frames enter as `dmsa_contract()`s (data, methylation, structural
+  covariates, technical measure-covariates, sex, chip, tissue).
+* **`dmsa_concordance(data, couple, partner_by, batch, ...)` - dyadic
+  concordance at every level, and what it predicts.** Step 0: per unit at
+  every level, the within-couple correlation against pseudo-couples
+  re-paired WITHIN `batch`; the re-pairing is the permutation stream, so
+  the level-local maxT and `p_tree` come from the same draws. `batch` has
+  NO default (ruling 4): the partners of a couple share a processing
+  plate, and a null that ignores it names the plate as concordance (the
+  oxytocin "tone concordance" of the unstratified 2026i run was plate);
+  `batch = FALSE` declares that none is shared. With `outcome`: the dyadic
+  response surface per unit on stacked actor-partner rows and the
+  incongruence-line contrast a4 = b3 - b4 + b5 by Freedman-Lane with the
+  HC contrast pivot, observed at the probe level and corrected (MATH 1.6
+  offsets, the conditioning guard, the uncorrected surface beside it) at
+  gene / module / system. With `exposure` (a 0/1 column of the partner
+  named by `exposed`): the MATH 7.3 slope change gamma3 per unit at every
+  level, the exposure never permuted. Probe, module and system level
+  reproduce the 2026i prototypes (`adv/hier/`) to the digit; at the gene
+  level the package resolves the confidence of direction-only pairs
+  through the pair ledger (as `dmsa_frame()`), where the prototype's
+  interim map treated them as certain - the named genes are the same.
+* **`dmsa_modmed()`: vector roles.** `x` and `m` accept vectors - several
+  predictors and several PARALLEL mediators: one M-model per mediator
+  (`M_j ~ all X + W + X:W ...`), one Y-model (`Y ~ all M + all X + W + M:W
+  ...`), every `X_i -> M_j -> Y` product by joint significance with Holm
+  over the products as the declared family (`p_holm_family`), the index
+  of moderated mediation per pair, and - with two or more LATENT
+  mediators - the connected measurement of the mediators (MATH 1.7: the
+  correlated-error covariance theta_MM of the two Bartlett scores from a
+  joint two-factor fit, lavaan, subtracted from the (M_i, M_j) cell when
+  |theta| / sqrt(V_i V_j) > .10; `theta_mm = "none"` skips it). The vector
+  core `.mm_core_v()` reproduces the scalar core to the digit when `x` and
+  `m` are scalars (tested), so every 0.99.12-0.99.13 result is unchanged
+  under the old rule. `dmsa_mediate()` hands several mediators over to
+  `dmsa_modmed()` (several X were always native there).
+* **Measurement rule v1.2 is the default (ruling 2).** In `dmsa_modmed()`,
+  `dmsa_mediate()` and the two new functions, every score is chip
+  quasi-demeaned and residualised on `measure_covariates` (the technical
+  terms; `NULL` = `covariates`) PLUS the `sex` column PLUS the array's
+  global mean M-value (`global_mean = TRUE`; over the `methylation` matrix,
+  or over every cg-site column of `data` - the output says which), and sex
+  and the global mean enter every equation as covariates. The saliva-wide
+  common factor of the 2026i builds is sex + global mean (MAP_V5_NOTE 6;
+  share .74 -> .31 after residualisation). `sex = NULL` /
+  `global_mean = FALSE` reproduce the 0.99.13 rule; `$rule` prints what ran.
+* **Direction source (ruling 3).** `map = "auto"` is the default of the path
+  functions: cpgdirection pair directions when the package is installed
+  (as `dmsa_frame()`), otherwise the bundled snapshot - now
+  `inst/extdata/coverage_v5_cpgdirection.csv.gz`, regenerated from
+  cpgdirection 2.6.0 for the whole Alpha cascade in blood and nasal
+  epithelium (9,578 / 9,574 usable pairs of 16,823 cascade CpGs), so the
+  fallback is no longer the 3.7 % interim snapshot. `$map_source` and
+  `$map_note` record which. `pairs = "cascade"` (default) keeps only the
+  selection cascade's CpG x gene assignments - a probe that pairs with a
+  second reference gene is not counted twice in the paired tests;
+  `pairs = "all"` keeps every pair as `dmsa_frame()` does.
+  `dmsa_frame()`'s own `map = "alpha"` snapshot (`coverage_v4_full.csv`)
+  is untouched in this release; swapping it is a separate item because a
+  dozen test files build their synthetic frames from it.
+* **The sensitivity battery in the call (ruling 5).** `dmsa_modmed(...,
+  sensitivities = c("homoscedastic", "unrestricted", "composite_rel",
+  "quadratic", "global_mean_off"), B_sens = 1999)` re-runs the same call
+  with one change each and returns one table (`$sensitivities`: model,
+  term, estimate, p) - the registered pattern of every 2026i PoC.
+* **Module tone builder.** `module_score = "aligned"` (the package rule:
+  the direction-weighted expected score, unchanged) or `"majority"` (the
+  v12 tone of the 2026i proofs of concept: the module's majority-direction
+  probes, mean of the scaled M-values, signed by the majority direction;
+  `anchor` orders a reference module first). The registered 2026i runs
+  used "majority"; the package default stays "aligned".
+* **Engine.** `mediate.R`'s `.med_measure / .med_moments / .med_reg /
+  .med_fl` are untouched. `.hier_fl()` re-computes `.med_fl()`'s HC
+  statistic against an EXTERNAL permutation stream so that the units of a
+  level share it; it reproduces `.med_fl()`'s b, t and p exactly under the
+  same seed (tested).
+* **Tests.** `test-hierarchy.R` (the shared-stream identity, both
+  functions at every level, the batch refusal, the snapshot),
+  `test-modmed-vector.R` (the vector/scalar identity, parallel mediators,
+  rule v1.2 and its switches, the direction source, theta_MM, the
+  battery). lavaan added to Suggests.
+
 # dmsa 0.99.13
 
 ## `dmsa_mediate()` / `dmsa_modmed()`: heteroscedasticity-consistent pivot (E15), permutation strata (E15), empty reduced model (E16)

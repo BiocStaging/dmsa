@@ -7,7 +7,7 @@
 dmsa_mediate(
   data,
   methylation = NULL,
-  map = "alpha",
+  map = "auto",
   x,
   m,
   w = NULL,
@@ -18,11 +18,15 @@ dmsa_mediate(
   single_rel = NULL,
   module_weights = c("equal", "sqrt_probes", "probes"),
   measure_covariates = NULL,
+  sex = NULL,
+  global_mean = TRUE,
   chip = NULL,
   block = NULL,
   perm_blocks = c("none", "chip"),
   model = c("7", "8"),
   map_level = c("full", "confidence"),
+  tissue = "blood",
+  pairs = c("cascade", "all"),
   B = 1999L,
   boot = 0L,
   alpha_ssc = 0,
@@ -40,12 +44,16 @@ dmsa_mediate(
 \code{data} rows (beta scale by default). When \code{NULL}, probe
 columns are taken from \code{data} itself.}
 
-\item{map}{A \code{dmsa_sets()} cascade or anything it accepts
-(default \code{"alpha"}).}
+\item{map}{\code{"auto"} (default since 0.99.14): cpgdirection pair
+directions when the package is installed, the bundled Alpha snapshot
+otherwise (recorded on the output as \code{$map_source} /
+\code{$map_note}); \code{"alpha"} forces the snapshot; a
+\code{dmsa_sets()} cascade or a direction-map data.frame as before.}
 
 \item{x}{Character vector of predictor system short names (1+).}
 
-\item{m}{Mediator system short name.}
+\item{m}{Mediator system short name(s); with several M the call is
+handed to \code{\link{dmsa_modmed}} (parallel mediators).}
 
 \item{w}{Moderator system short name, or \code{NULL} for plain mediation.}
 
@@ -84,6 +92,11 @@ pre-adjustment). \code{NULL} (default) uses \code{covariates};
 only through the structural covariates); a subset (e.g. the cell
 fractions alone) brackets the under-/over-adjustment trade-off.}
 
+\item{sex}{the sex column (measurement rule v1.2: residualised from the
+tones and a covariate of every equation); \code{global_mean} adds the
+array's global mean M-value the same way. \code{sex = NULL} /
+\code{global_mean = FALSE} reproduce the 0.99.13 rule.}
+
 \item{chip}{Optional column in \code{data} naming the array chip. When
 given, module tones are chip-quasi-demeaned (REML, R/ranef.R) BEFORE
 the measurement stage, and outcome/covariates before the structural
@@ -108,6 +121,11 @@ scheme; both are available so the gate can be run.}
 \item{map_level}{\code{"full"} or \code{"confidence"} - which analysed
 direction-map level supplies the probe universe (as in
 \code{dmsa_frame()}); module membership joins from the cascade by gene.}
+
+\item{tissue}{the tissue the cpgdirection map is resolved for.}
+
+\item{pairs}{\code{"cascade"} keeps only the selection cascade's CpG x
+gene assignments from the cpgdirection map; \code{"all"} every pair.}
 
 \item{B}{Permutations per path.}
 
