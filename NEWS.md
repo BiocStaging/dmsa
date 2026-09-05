@@ -1,3 +1,41 @@
+# dmsa 0.99.15
+
+## Planning ships with the engine: `dmsa_power_modmed()`, `dmsa_n_modmed()`, `dmsa_power_slope()` / `dmsa_n_slope()`, `dmsa_power_transmit()`, `dmsa_power_concordance()` / `dmsa_power_exposure()` / `dmsa_power_surface()` (POWER v2; engine untouched)
+
+* **Through the estimator, not beside it.** `dmsa_power_modmed()` simulates
+  the structural model (`M = a1 X + a2 W + a3 XW`, `Y = b1 M + c1 X + c2 W
+  + b3 MW`, unit-variance latents, measurement error per role by its
+  reliability, optional nuisance covariates and family blocks) and runs
+  the package's own corrected-moments core (`.mm_core_v`) on every
+  replicate. `mode = "t"` reads the engine's HC errors-in-variables t (the
+  E15 pivot) against a normal reference - seconds per cell; `mode =
+  "perm"` runs the shipped Freedman-Lane test with `B` permutations. Power
+  per path, for the indirect effect (joint significance) and for the index
+  of moderated mediation (first stage a3 b1, second stage a1 b3, dual stage
+  the Holm union - the registered test); the mean corrected estimate
+  against the truth and the conditioning-guard rate come with it.
+  `quadratic = TRUE` prices the safeguard; `moderator = FALSE` is plain
+  mediation. `dmsa_n_modmed()` bisects n for a target power of any
+  estimand.
+* **Closed forms** for a single (partial) slope between error-prone scores
+  (Fisher z on the attenuated correlation, covariates cost df), and for the
+  hierarchy: `dmsa_power_transmit()` (the paired child ~ mother + father
+  slope at one level, with the power to NAME the unit within its
+  level-local family - Bonferroni, the conservative side of maxT),
+  `dmsa_power_concordance()` (within-couple r per unit, and named within
+  the level), `dmsa_power_exposure()` (gamma3 as the Fisher-z difference of
+  two within-couple correlations), `dmsa_power_surface()` (the corrected
+  dyadic surface through the MATH 1.6 offsets: power of a4, the guard rate
+  and the median inflation of the corrected curvature).
+* **Reading.** Effect sizes are latent-scale; a .70 reliability
+  attenuates the observed signal by sqrt(.70) per error-prone side, the
+  estimator undoes it in the estimate and not in the information, so a
+  latent r = .30 between two .70 tones is tested as an observed .21.
+  POWER_v2.md carries the paper's tables at the 2026i sample sizes.
+* **Tests.** `test-power.R`: attenuation / monotonicity / inversion of the
+  closed forms, both simulation modes through the core, the level at the
+  null, the hierarchy forms and the surface.
+
 # dmsa 0.99.14
 
 ## The four path methods of paper 3, in the package: `dmsa_transmit()`, `dmsa_concordance()`, vector roles in `dmsa_modmed()` / `dmsa_mediate()`, measurement rule v1.2, the cpgdirection default (API proposal v1.1, PI rulings 0-5 of 2026-09-04; engine untouched)
