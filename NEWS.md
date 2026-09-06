@@ -1,3 +1,23 @@
+# dmsa 0.99.16
+
+## A CpG keeps every gene it pairs with (`dmsa_transmit()`, `dmsa_concordance()`, `dmsa_modmed()` / `dmsa_mediate()` maps; engine untouched)
+
+* **Definition, not option.** DMSA takes a probe to every gene it pairs
+  with in the direction map, because one methylation site can regulate
+  several genes, in several systems (cpgdirection). The 0.99.14 path
+  functions had kept one pair per probe within a system
+  (`!duplicated()` in `.paths_tones()` and `.hier_scores()`), so a CpG
+  paired with two cascade genes counted for the first only. Both now keep
+  every pair at the gene level; the probe, module and system levels use
+  each probe once (a probe is one unit, a module tone averages each of its
+  probes once). `meta$pairs` (probe, gene, module) is returned; a probe's
+  `probe_gene` label lists its genes as `A/B`. On the Alpha cascade this
+  touches 2 noradrenergic and 30 immune pairs (0 in HPA, oxytocin,
+  kynurenine, dopamine); the Alpha hierarchy results change at the immune
+  gene level only (103 genes, was 101; nothing named before or after).
+* Test: a synthetic map in which one CpG pairs with two genes scores the
+  probe once and both genes (test-hierarchy.R).
+
 # dmsa 0.99.15
 
 ## Planning ships with the engine: `dmsa_power_modmed()`, `dmsa_n_modmed()`, `dmsa_power_slope()` / `dmsa_n_slope()`, `dmsa_power_transmit()`, `dmsa_power_concordance()` / `dmsa_power_exposure()` / `dmsa_power_surface()` (POWER v2; engine untouched)

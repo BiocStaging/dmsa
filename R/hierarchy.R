@@ -34,10 +34,14 @@
   gm <- unique(cas[cas$system_short == s, c("module_id", "module", "gene"), drop = FALSE])
   sm$module_id <- gm$module_id[match(sm$gene, gm$gene)]
   sm$col <- ifelse(sm$probe %in% colnames(ME), sm$probe, ifelse(sm$column %in% colnames(ME), sm$column, NA_character_))
-  sm <- sm[!is.na(sm$col) & !is.na(sm$module_id) & !duplicated(sm$col), , drop = FALSE]
-  P <- ME[, sm$col, drop = FALSE]; ok <- colSums(is.na(P)) == 0
-  P <- P[, ok, drop = FALSE]; sm <- sm[ok, , drop = FALSE]; colnames(P) <- sm$probe
-  out <- list(); meta <- list(probe_gene = stats::setNames(sm$gene, sm$probe), probe_module = stats::setNames(sm$module_id, sm$probe))
+  ## every CpG x gene pair is kept (a CpG can regulate more than one gene);
+  ## the probe, module and system levels use each probe once
+  sm <- sm[!is.na(sm$col) & !is.na(sm$module_id), , drop = FALSE]
+  smu <- sm[!duplicated(sm$col), , drop = FALSE]
+  P <- ME[, smu$col, drop = FALSE]; ok <- colSums(is.na(P)) == 0
+  P <- P[, ok, drop = FALSE]; smu <- smu[ok, , drop = FALSE]; colnames(P) <- smu$probe; sm <- sm[sm$col %in% smu$col, , drop = FALSE]
+  pg <- tapply(sm$gene, sm$probe, function(g) paste(unique(g), collapse = "/"))
+  out <- list(); meta <- list(probe_gene = stats::setNames(as.character(pg[smu$probe]), smu$probe), probe_module = stats::setNames(smu$module_id, smu$probe), pairs = sm[, c("probe", "gene", "module_id")])
   if ("probe" %in% levels) out$probe <- apply(P, 2, .hier_resid, chipv = st$chipv, CVres = st$CVres)
   if ("gene" %in% levels) {
     genes <- names(which(table(sm$gene) >= 2L))

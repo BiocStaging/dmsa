@@ -128,3 +128,20 @@ test_that("the regenerated cpgdirection snapshot is the fallback of the path fun
   sn2 <- dmsa:::.paths_snapshot("nasal_epithelium"); expect_true(all(sn2$tissue == "nasal_epithelium"))
   cf <- dmsa:::.paths_snapshot("blood", "confidence"); expect_true(all(cf$direction_tier %in% c("M", "S1")))
 })
+
+test_that("a CpG that pairs with two genes of the cascade enters both genes and each probe once above (0.99.16)", {
+  skip_if_not(nzchar(system.file("extdata", "coverage_v4_full.csv", package = "dmsa")))
+  d <- mk_hier()
+  mp <- utils::read.csv(system.file("extdata", "coverage_v4_full.csv", package = "dmsa"))
+  mp <- mp[is.finite(mp$best_direction) & mp$system_id == 1, ]
+  ## give the first probe of gene A a second pairing with gene B (same system)
+  gA <- mp$gene[1]; gB <- setdiff(unique(mp$gene), gA)[1]; dup <- mp[1, ]; dup$gene <- gB; mp2 <- rbind(mp, dup)
+  parents <- dmsa_contract(d$par, methylation = d$P, covariates = "age", measure_covariates = "Epi", sex = "sex", chip = "chip")
+  child <- dmsa_contract(d$chi, methylation = d$C, covariates = "bw", measure_covariates = "Epi", sex = "sex", chip = "chip")
+  tr <- suppressWarnings(dmsa_transmit(child, parents, link = "cID", parent_role = "sex", roles = c(mother = 2, father = 1),
+                                       systems = "oxytocin", map = mp2, B = 9, seed = 1))
+  u <- tr$units
+  expect_equal(sum(u$level == "probe" & u$unit == mp$probe[1]), 1L)                      # the probe is scored once
+  expect_true(all(c(gA, gB) %in% u$unit[u$level == "gene"]) || !gB %in% u$unit[u$level == "gene"])  # gene B exists when it has >= 2 probes
+  expect_equal(sum(u$level == "probe"), length(unique(mp$probe)))                         # no duplicate probe rows
+})

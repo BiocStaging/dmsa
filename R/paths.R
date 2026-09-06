@@ -90,12 +90,14 @@
   gm <- unique(cas[cas$system_short == s, c("module_id", "module", "gene"), drop = FALSE])
   sm$module_id <- gm$module_id[match(sm$gene, gm$gene)]
   sm$col <- ifelse(sm$probe %in% colnames(ME), sm$probe, ifelse(sm$column %in% colnames(ME), sm$column, NA_character_))
-  sm <- sm[!is.na(sm$col) & !is.na(sm$module_id) & !duplicated(sm$col), , drop = FALSE]
+  ## a probe keeps every gene it pairs with (a CpG can regulate more than one
+  ## gene); the module tone uses each probe once
+  sm <- sm[!is.na(sm$col) & !is.na(sm$module_id), , drop = FALSE]
   mods <- unique(sm$module_id)
   if (!is.null(anchor) && !is.null(anchor[[s]])) mods <- c(intersect(anchor[[s]], mods), setdiff(mods, anchor[[s]]))
   tl <- list(); np <- integer(); cov_rows <- list()
   for (md in mods) {
-    cm <- sm[sm$module_id == md, , drop = FALSE]; lab <- gm$module[match(md, gm$module_id)]
+    cm <- sm[sm$module_id == md, , drop = FALSE]; cm <- cm[!duplicated(cm$col), , drop = FALSE]; lab <- gm$module[match(md, gm$module_id)]
     d <- cm$best_direction; dmaj <- sign(sum(d, na.rm = TRUE)); if (is.na(dmaj) || dmaj == 0) dmaj <- 1
     cols <- cm$col[is.na(d) | d == dmaj]
     X <- ME[, cols, drop = FALSE]; X <- X[, colSums(is.na(X)) == 0, drop = FALSE]
@@ -168,8 +170,8 @@
     mapinfo <- .paths_map(map, colnames(ME0), tissue = tissue, map_level = map_level, reference = reference)
     mp <- mapinfo$mp; mp$system_id <- as.character(mp$system_id)
     ## pairs = "cascade": only the CpG x gene assignments of the selection
-    ## cascade (the curated membership; map v5 of the 2026i runs) - a probe
-    ## that pairs with a second gene in the reference is not counted twice.
+    ## cascade (the curated membership; map v5 of the 2026i runs); a probe
+    ## that pairs with more than one cascade gene keeps every pair.
     ## "all" keeps every usable pair, as dmsa_frame() does (co-effects).
     if (pairs == "cascade" && !is.null(cas$cpg)) {
       k <- paste(mp$probe, mp$gene) %in% paste(cas$cpg, cas$gene)
