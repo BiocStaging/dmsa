@@ -260,9 +260,12 @@
 #'   mean M-value (over the \code{methylation} matrix, or over every cg-site
 #'   column of \code{data}).
 #' @param tissue the tissue the cpgdirection map is resolved for.
-#' @param module_score \code{"aligned"} (the package rule: the
-#'   direction-weighted expected score) or \code{"majority"} (the v12 tone of
-#'   the 2026i proofs of concept); \code{anchor} an optional named vector of
+#' @param module_score \code{"majority"} (default since 0.99.17: the module's
+#'   majority-direction probes, mean of the scaled M-values, signed by that
+#'   direction - the v12 tone of the 2026i registered runs) or
+#'   \code{"aligned"} (the direction-weighted expected score, the default of
+#'   0.99.12-16). The registered runs, and every number of the methods paper,
+#'   are \code{"majority"}; \code{anchor} an optional named vector of
 #'   the module placed first per system; \code{pairs} \code{"cascade"}
 #'   (only the selection cascade's CpG x gene assignments) or \code{"all"}.
 #' @param theta_mm \code{"auto"} fits the connected measurement of every
@@ -289,13 +292,13 @@ dmsa_modmed <- function(data, methylation = NULL, map = "auto",
                         w_on = c("both", "a", "b"), direct_moderation = FALSE,
                         quadratic = FALSE, covariates = character(),
                         measurement = c("congeneric", "tau", "single"),
-                        min_module_probes = 3L, single_rel = NULL,
+                        min_module_probes = 3L, single_rel = 0.70,
                         module_weights = c("equal", "sqrt_probes", "probes"),
                         measure_covariates = NULL, sex = NULL, global_mean = TRUE,
                         chip = NULL, block = NULL,
                         perm_blocks = c("none", "chip"),
                         map_level = c("full", "confidence"), tissue = "blood",
-                        module_score = c("aligned", "majority"), anchor = NULL, pairs = c("cascade", "all"),
+                        module_score = c("majority", "aligned"), anchor = NULL, pairs = c("cascade", "all"),
                         B = 1999L, boot = 0L, boot_rung = c("fixed", "ladder"),
                         alpha_ssc = 0, conditional_at = c(-1, 0, 1),
                         beta_input = TRUE, seed = NULL,
@@ -435,6 +438,12 @@ dmsa_modmed <- function(data, methylation = NULL, map = "auto",
     sensitivities = sens,
     perm_blocks = if (!is.null(blockv)) "family-exchange" else perm_blocks,
     pivot = pivot, strata = strata,
+    ## the corrected SD of every modeled column (sqrt of the diagonal of the
+    ## corrected moment matrix; a latent role is 1 by construction). Kept so
+    ## that a path can be reported on the standardized scale as well as on
+    ## the raw metric of the observed variables - the registered runs and the
+    ## methods paper print the standardized one (0.99.17).
+    scales = sqrt(pmax(diag(core$moments$S), 0)),
     moments = list(shrink = core$moments$shrink, lambda_triggered = core$moments$lambda_triggered)),
     class = "dmsa_modmed")
 }

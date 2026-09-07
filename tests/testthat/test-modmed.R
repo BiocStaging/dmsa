@@ -20,8 +20,13 @@ test_that("dmsa_modmed reproduces dmsa_mediate model 7 exactly", {
   d <- mk_data()
   f1 <- suppressWarnings(dmsa_mediate(d$dat, methylation = d$B, x = "hpa", m = "kynurenine", w = "oxytocin",
     outcome = "EPDS", covariates = "age", chip = "chip", block = "fam", measurement = "congeneric", B = 99, seed = 1))
+  ## dmsa_mediate()'s all-systems branch builds its module tones with the
+  ## aligned rule (dmsa_align x dmsa_scores); dmsa_modmed() defaults to the
+  ## majority builder since 0.99.17. The reduction is tested under the same
+  ## tone rule - that is what "reproduces exactly" means here.
   f2 <- suppressWarnings(dmsa_modmed(d$dat, methylation = d$B, x = "hpa", m = "kynurenine", w = "oxytocin", y = "EPDS",
-    w_on = "a", covariates = "age", chip = "chip", block = "fam", measurement = "congeneric", B = 99, seed = 1))
+    w_on = "a", covariates = "age", chip = "chip", block = "fam", measurement = "congeneric", B = 99, seed = 1,
+    module_score = "aligned"))
   expect_s3_class(f2, "dmsa_modmed")
   expect_setequal(names(f1$paths), names(f2$paths))
   for (k in names(f1$paths)) {

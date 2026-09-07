@@ -15,3 +15,4 @@ dmsa_nsweep_v*/
 dmsa.Rcheck/
 dmsa.BiocCheck/
 *.tar.gz
+Rplots.pdf

@@ -22,7 +22,7 @@ dmsa_concordance(
   seed = 1L,
   min_module_probes = 3L,
   module_weights = c("equal", "sqrt_probes", "probes"),
-  module_score = c("aligned", "majority"),
+  module_score = c("majority", "aligned"),
   anchor = NULL,
   map_level = c("full", "confidence"),
   pairs = c("cascade", "all")

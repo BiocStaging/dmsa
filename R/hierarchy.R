@@ -169,7 +169,7 @@
 dmsa_transmit <- function(child, parents, link = "cID", parent_role = "sex", roles = c(mother = 2, father = 1),
                           systems, levels = c("probe", "gene", "module", "system"), map = "auto",
                           composite_rel = 0.70, B = 1999L, seed = 1L, min_module_probes = 3L,
-                          module_weights = c("equal", "sqrt_probes", "probes"), module_score = c("aligned", "majority"),
+                          module_weights = c("equal", "sqrt_probes", "probes"), module_score = c("majority", "aligned"),
                           anchor = NULL, map_level = c("full", "confidence"), pairs = c("cascade", "all")) {
   module_weights <- match.arg(module_weights); module_score <- match.arg(module_score); map_level <- match.arg(map_level); pairs <- match.arg(pairs)
   levels <- match.arg(levels, c("probe", "gene", "module", "system"), several.ok = TRUE)
@@ -320,7 +320,7 @@ dmsa_concordance <- function(data, couple = "cID", partner_by = "sex", roles = c
                              levels = c("probe", "gene", "module", "system"), batch = NULL, outcome = NULL,
                              exposure = NULL, exposed = names(roles)[1], map = "auto", composite_rel = 0.70,
                              B = 1999L, NP = 2000L, seed = 1L, min_module_probes = 3L,
-                             module_weights = c("equal", "sqrt_probes", "probes"), module_score = c("aligned", "majority"),
+                             module_weights = c("equal", "sqrt_probes", "probes"), module_score = c("majority", "aligned"),
                              anchor = NULL, map_level = c("full", "confidence"), pairs = c("cascade", "all")) {
   module_weights <- match.arg(module_weights); module_score <- match.arg(module_score); map_level <- match.arg(map_level); pairs <- match.arg(pairs)
   levels <- match.arg(levels, c("probe", "gene", "module", "system"), several.ok = TRUE)

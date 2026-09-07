@@ -176,7 +176,10 @@ test_that("beep never errors, whatever it is handed", {
 test_that("the frame carries progress and beep, and report can override", {
   expect_true("progress" %in% names(formals(dmsa_frame)))
   expect_true("beep" %in% names(formals(dmsa_frame)))
-  expect_true(all(c("progress", "beep") %in% names(formals(dmsa_report))))
+  ## dmsa_report() is a generic since 0.99.17 (it also reports the four
+  ## structural methods), so the two live on the frame METHOD
+  expect_true(all(c("progress", "beep") %in%
+                    names(formals(dmsa_report.dmsa_frame))))
   ## both default to interactive(), so a check run is silent and bar-free
   expect_identical(eval(formals(dmsa_frame)$beep), interactive())
   expect_identical(eval(formals(dmsa_frame)$progress), interactive())

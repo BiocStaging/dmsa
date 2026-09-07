@@ -176,7 +176,7 @@
   ## in dmsa_scores() either way.
   comp <- if (is.null(mod_w) || length(mod_w) != p) rowMeans(tones) else
     as.numeric(tones %*% (mod_w / sum(mod_w)))
-  if (!is.null(single_rel)) {
+  if (!is.null(single_rel) && !is.na(single_rel)) {
     rel <- min(max(as.numeric(single_rel), 0.05), 0.99)
   } else if (p >= 2L) {
     R <- stats::cor(tones); rbar <- mean(R[lower.tri(R)])
@@ -573,10 +573,14 @@
 #'   \code{"single"} automatically.
 #' @param min_module_probes A module enters as an indicator only with at
 #'   least this many usable aligned probes (default 3).
-#' @param single_rel Optional FIXED reliability for any system that lands in
-#'   single-indicator mode (Savalei 2019: fixed a-priori values outperform
-#'   same-sample estimates in small samples). \code{NULL} estimates by
-#'   Spearman-Brown instead.
+#' @param single_rel FIXED reliability for any system that lands in
+#'   single-indicator mode. Default \code{0.70}, the registered choice
+#'   (Savalei 2019: fixed a-priori values outperform same-sample estimates in
+#'   small samples). \code{NA} estimates it by Spearman-Brown over the mean
+#'   inter-tone correlation instead - which floors at .05 whenever the module
+#'   tones do not cohere, and a reliability of .05 makes the offsets, and
+#'   every path through that tone, unreadable. Since 0.99.17 the fixed value
+#'   is the default for that reason.
 #' @param module_weights How module tones combine in the SINGLE-INDICATOR
 #'   composite: \code{"equal"} (default - standardized tones, equal a
 #'   priori weight), \code{"sqrt_probes"} or \code{"probes"} (precision
@@ -664,7 +668,7 @@
 dmsa_mediate <- function(data, methylation = NULL, map = "auto",
                          x, m, w = NULL, outcome, covariates = character(),
                          measurement = c("tau", "congeneric", "single"),
-                         min_module_probes = 3L, single_rel = NULL,
+                         min_module_probes = 3L, single_rel = 0.70,
                          module_weights = c("equal", "sqrt_probes", "probes"),
                          measure_covariates = NULL, sex = NULL, global_mean = TRUE,
                          chip = NULL, block = NULL,

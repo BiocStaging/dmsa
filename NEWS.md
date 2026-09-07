@@ -1,3 +1,87 @@
+# dmsa 0.99.17
+
+## `dmsa_report()` now delivers the four structural methods
+
+* **The same three things, for a result as for a frame.**
+  `dmsa_mediate()`, `dmsa_modmed()`, `dmsa_transmit()` and
+  `dmsa_concordance()` printed to the console and nothing else, so a
+  result could be read but not filed. `dmsa_report()` is now an S3
+  generic: handed any of those objects it writes `tables/` (csv, html
+  and, with **gt**, docx), `figures/` and `summary.md` under `outdir`,
+  exactly as the frame path has always done. The summary opens with the
+  call that produced it, then the design, the tables inline, the figures,
+  and how to read them. Nothing is recomputed: every number written was
+  estimated by the method that produced the object.
+* Tables: paths, indices, conditional indirect effects, measurement,
+  bootstrap quantiles and module coverage (mediation / moderated
+  mediation); per level, named units, measurement and every unit
+  (transmission); per level, named units, step 0, surface and exposure
+  (concordance). Figures: the path and index forests, the conditional
+  indirect effect against the moderator, mother and father side by side
+  per unit, and the largest within-couple r at each level against its
+  batch-matched null. Viridis throughout.
+* An existing report is never silently replaced (spec 54, as on the frame
+  path), and the refusal now comes BEFORE anything is drawn, so a refused
+  call leaves the directory as it was.
+* `dmsa_report(frame)` is unchanged: the frame method is the function
+  that was there, under a generic.
+
+## Methylation columns are matched by canonical CpG id
+
+* **A blocker, not a nicety.** The path functions matched a map's probe
+  ids against `colnames()` verbatim. A frame whose columns carry study
+  suffixes - `cg02187522_TC21_T1_AVP`, the shape of every Project Alpha
+  build - matched NO pair against the live cpgdirection map (0 of
+  12,498), and every one of the four methods stopped with "system 'hpa'
+  has no usable module tone at 3+ probes". Only the bundled per-column
+  snapshot happened to work, so the methods appeared to run while
+  silently confined to it. `.paths_setup()` now reads every methylation
+  column as its canonical CpG id and averages the replicate designs of
+  one site (the frame's `collapse_site` policy) before any map is
+  resolved; the map source line reports the collapse. On Alpha: 9,578
+  cascade pairs, hpa 8 modules, oxytocin 741 probes over 9 modules.
+
+## The registered recipe is now the shipped default (PI ruling, 2026-09-07)
+
+* **`single_rel = 0.70`** in `dmsa_mediate()` and `dmsa_modmed()`, the
+  registered choice (Savalei 2019), replacing `NULL` = estimate by
+  Spearman-Brown. The estimate floors at .05 whenever a system's module
+  tones do not cohere - which is the common case on real data - and a
+  reliability of .05 gives an error variance of 19 and paths that cannot
+  be read. `single_rel = NA` restores the estimated route.
+* **`module_score = "majority"`** is now the default of `dmsa_modmed()`,
+  `dmsa_transmit()` and `dmsa_concordance()`: the module's
+  majority-direction probes, mean of the scaled M-values, signed by that
+  direction - the v12 tone of the 2026i registered runs and of every
+  number in the methods paper. `"aligned"`, the 0.99.12-16 default,
+  remains available.
+* Together these reproduce the registered runs from the package's own
+  defaults. Registered run 3c re-estimated through `dmsa_modmed()`:
+  measurement identical (hpa single, omega .70; noradrenaline
+  congeneric, omega .57) and every standardized path within .0004 of the
+  frozen result, every p within permutation noise.
+
+## Two notes on the divergence this creates
+
+* `dmsa_mediate()`'s all-systems branch keeps its own aligned tone builder
+  (`dmsa_align` x `dmsa_scores`), so it and `dmsa_modmed()` no longer agree
+  under their defaults; `dmsa_modmed(module_score = "aligned")` is its
+  equivalent, and the reduction test now compares them that way. Unifying
+  the two builders is a decision for the next version, not a silent change
+  here: the engine (`.med_measure` / `.med_moments` / `.med_reg` /
+  `.med_fl`) is untouched.
+* `dmsa_report()` is a generic, so `progress` and `beep` are formals of
+  `dmsa_report.dmsa_frame()` rather than of `dmsa_report()`. Every existing
+  call is unaffected.
+
+## Paths are reported on both scales
+
+* The object now carries `scales`, the corrected SD of every modeled
+  column, and the report's paths table adds `b_std` beside `b`: the
+  engine estimates on the raw metric of the observed variables, while the
+  registered runs and the paper print the standardized path. Both are
+  now available without re-fitting.
+
 # dmsa 0.99.16
 
 ## A CpG keeps every gene it pairs with (`dmsa_transmit()`, `dmsa_concordance()`, `dmsa_modmed()` / `dmsa_mediate()` maps; engine untouched)

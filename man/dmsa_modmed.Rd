@@ -20,7 +20,7 @@ dmsa_modmed(
   covariates = character(),
   measurement = c("congeneric", "tau", "single"),
   min_module_probes = 3L,
-  single_rel = NULL,
+  single_rel = 0.7,
   module_weights = c("equal", "sqrt_probes", "probes"),
   measure_covariates = NULL,
   sex = NULL,
@@ -30,7 +30,7 @@ dmsa_modmed(
   perm_blocks = c("none", "chip"),
   map_level = c("full", "confidence"),
   tissue = "blood",
-  module_score = c("aligned", "majority"),
+  module_score = c("majority", "aligned"),
   anchor = NULL,
   pairs = c("cascade", "all"),
   B = 1999L,
@@ -99,10 +99,14 @@ Savalei 2019). Systems with fewer than 3 usable modules fall back to
 \item{min_module_probes}{A module enters as an indicator only with at
 least this many usable aligned probes (default 3).}
 
-\item{single_rel}{Optional FIXED reliability for any system that lands in
-single-indicator mode (Savalei 2019: fixed a-priori values outperform
-same-sample estimates in small samples). \code{NULL} estimates by
-Spearman-Brown instead.}
+\item{single_rel}{FIXED reliability for any system that lands in
+single-indicator mode. Default \code{0.70}, the registered choice
+(Savalei 2019: fixed a-priori values outperform same-sample estimates in
+small samples). \code{NA} estimates it by Spearman-Brown over the mean
+inter-tone correlation instead - which floors at .05 whenever the module
+tones do not cohere, and a reliability of .05 makes the offsets, and
+every path through that tone, unreadable. Since 0.99.17 the fixed value
+is the default for that reason.}
 
 \item{module_weights}{How module tones combine in the SINGLE-INDICATOR
 composite: \code{"equal"} (default - standardized tones, equal a
@@ -146,9 +150,12 @@ direction-map level supplies the probe universe (as in
 
 \item{tissue}{the tissue the cpgdirection map is resolved for.}
 
-\item{module_score}{\code{"aligned"} (the package rule: the
-direction-weighted expected score) or \code{"majority"} (the v12 tone of
-the 2026i proofs of concept); \code{anchor} an optional named vector of
+\item{module_score}{\code{"majority"} (default since 0.99.17: the module's
+majority-direction probes, mean of the scaled M-values, signed by that
+direction - the v12 tone of the 2026i registered runs) or
+\code{"aligned"} (the direction-weighted expected score, the default of
+0.99.12-16). The registered runs, and every number of the methods paper,
+are \code{"majority"}; \code{anchor} an optional named vector of
 the module placed first per system; \code{pairs} \code{"cascade"}
 (only the selection cascade's CpG x gene assignments) or \code{"all"}.}
 

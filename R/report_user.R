@@ -1201,16 +1201,12 @@
   max(1L, as.integer(length(frame$outcome) * per_outcome))
 }
 
-#' Run a declared frame and deliver figures, tables and a summary
-#'
-#' Call 2 of the two-call interface. Runs each requested level x outcome with
-#' the locked statistics, applies correction ONLY within level-local families,
-#' runs the always-on brain-bridge post-hoc on surviving probes, and writes
-#' everything under \code{frame$outdir}.
-#'
-#' @param frame a \code{\link{dmsa_frame}}.
-#' @return object of class \code{dmsa_report}: file paths and result tables,
-#'   invisibly printable.
+#' @rdname dmsa_report
+#' @details For a \code{dmsa_frame} this is call 2 of the two-call interface:
+#'   it runs each requested level x outcome with the locked statistics,
+#'   applies correction ONLY within level-local families, runs the always-on
+#'   brain-bridge post-hoc on surviving probes, and writes everything under
+#'   \code{frame$outdir}.
 #' @param progress Show a 0-100% progress bar. \code{NULL} (default) takes the
 #'   value declared on the frame, which itself defaults to \code{interactive()}.
 #' @param beep Completion sound. \code{NULL} (default) takes the frame's value.
@@ -1237,9 +1233,11 @@
 #'                  plots = FALSE, tables = FALSE)
 #' r <- dmsa_report(fr)
 #' r$results[, c("level", "unit", "n_probes", "p_omnibus")]
+#' @rdname dmsa_report
+#' @param progress,beep console progress and completion sound (frame only).
 #' @export
-dmsa_report <- function(frame, progress = NULL, beep = NULL,
-                        overwrite = FALSE) {
+dmsa_report.dmsa_frame <- function(frame, progress = NULL, beep = NULL,
+                                   overwrite = FALSE, ...) {
   .rp_env$gt_said <- FALSE
   stopifnot(inherits(frame, "dmsa_frame"))
   t_start <- Sys.time()

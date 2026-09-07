@@ -15,7 +15,7 @@ dmsa_mediate(
   covariates = character(),
   measurement = c("tau", "congeneric", "single"),
   min_module_probes = 3L,
-  single_rel = NULL,
+  single_rel = 0.7,
   module_weights = c("equal", "sqrt_probes", "probes"),
   measure_covariates = NULL,
   sex = NULL,
@@ -73,10 +73,14 @@ Savalei 2019). Systems with fewer than 3 usable modules fall back to
 \item{min_module_probes}{A module enters as an indicator only with at
 least this many usable aligned probes (default 3).}
 
-\item{single_rel}{Optional FIXED reliability for any system that lands in
-single-indicator mode (Savalei 2019: fixed a-priori values outperform
-same-sample estimates in small samples). \code{NULL} estimates by
-Spearman-Brown instead.}
+\item{single_rel}{FIXED reliability for any system that lands in
+single-indicator mode. Default \code{0.70}, the registered choice
+(Savalei 2019: fixed a-priori values outperform same-sample estimates in
+small samples). \code{NA} estimates it by Spearman-Brown over the mean
+inter-tone correlation instead - which floors at .05 whenever the module
+tones do not cohere, and a reliability of .05 makes the offsets, and
+every path through that tone, unreadable. Since 0.99.17 the fixed value
+is the default for that reason.}
 
 \item{module_weights}{How module tones combine in the SINGLE-INDICATOR
 composite: \code{"equal"} (default - standardized tones, equal a

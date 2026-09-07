@@ -82,7 +82,7 @@
 ##                signed by the majority direction; floor min_module_probes
 ## Both: chip quasi-demeaned, then residualised on CVres (the measurement rule).
 .paths_tones <- function(s, ME, mp, cas, sysid, pol_tab, min_module_probes, module_weights, chipv, CVres,
-                         module_score = c("aligned", "majority"), anchor = NULL) {
+                         module_score = c("majority", "aligned"), anchor = NULL) {
   module_score <- match.arg(module_score)
   if (module_score == "aligned")
     return(.mm_tones(s, ME, mp, cas, sysid, pol_tab, min_module_probes, module_weights, chipv, CVres))
@@ -137,7 +137,7 @@
                          covariates = character(), measure_covariates = NULL, sex = NULL, global_mean = TRUE,
                          chip = NULL, block = NULL, strata = NULL, beta_input = TRUE, tissue = "blood",
                          map_level = "full", min_module_probes = 3L, module_weights = "equal",
-                         module_score = "aligned", anchor = NULL, reference = "alpha", extra = character(),
+                         module_score = "majority", anchor = NULL, reference = "alpha", extra = character(),
                          need_tones = TRUE, pairs = c("cascade", "all")) {
   pairs <- match.arg(pairs)
   if (inherits(data, "dmsa_import")) { if (is.null(methylation)) methylation <- data$methylation; data <- data$data }
@@ -167,6 +167,23 @@
     if (nrow(ME0) != nrow(data)) stop("methylation has ", nrow(ME0), " rows but data has ", nrow(data), call. = FALSE)
     mode(ME0) <- "numeric"
     if (beta_input) ME0 <- dmsa_mvalues(ME0)
+    ## Columns may carry study suffixes (cg02187522_TC21_T1_AVP); every
+    ## direction map speaks canonical CpG ids. Name the columns by their
+    ## canonical id and average the replicate designs of one site - the
+    ## frame's collapse_site policy - so the same map matches whatever the
+    ## columns happened to be called. Without this a suffixed frame matched
+    ## no pair at all and every path method stopped at "no usable module
+    ## tone" (0.99.17).
+    .cn <- colnames(ME0); .canon <- .map_canon_cpg(.cn)
+    .canonical <- !identical(.cn, .canon); .collapsed <- 0L
+    if (.canonical) {
+      .grp <- split(seq_along(.cn), .canon)
+      .collapsed <- sum(lengths(.grp) > 1L)
+      ME0 <- vapply(.grp, function(ix) if (length(ix) == 1L) ME0[, ix] else
+                      rowMeans(ME0[, ix, drop = FALSE], na.rm = TRUE),
+                    numeric(nrow(ME0)))
+      colnames(ME0) <- names(.grp)
+    }
     mapinfo <- .paths_map(map, colnames(ME0), tissue = tissue, map_level = map_level, reference = reference)
     mp <- mapinfo$mp; mp$system_id <- as.character(mp$system_id)
     ## pairs = "cascade": only the CpG x gene assignments of the selection
@@ -181,6 +198,13 @@
     mapinfo$mp <- mp
     pc <- intersect(unique(c(mp$probe, mp$column)), colnames(ME0))
     ME <- ME0[keep, pc, drop = FALSE]
+    attr(ME, "canonical") <- .canonical
+    attr(ME, "collapsed_sites") <- .collapsed
+    attr(ME, "n_columns") <- ncol(ME0)
+    if (.canonical)
+      mapinfo$source <- sprintf("%s; columns read as canonical CpG ids (%d columns -> %d sites%s)",
+                                mapinfo$source, length(.cn), ncol(ME0),
+                                if (.collapsed) sprintf(", %d replicated site(s) averaged", .collapsed) else "")
   }
   data <- data[keep, , drop = FALSE]; n <- nrow(data)
   if (n < 30L) stop("only ", n, " complete rows; this engine is not built for n < 30", call. = FALSE)
