@@ -120,7 +120,9 @@ test_that("spec 63: a diffuse-only gene is NAMED and reported as carried by the 
   expect_gt(u$p_coherence_adj, 0.05)
   expect_gt(u$p_composite_adj, 0.05)
   sm <- readLines(file.path(od, "summary.md"))
-  expect_true(any(grepl("NR3C1 (y, carried by the diffuse lens", sm, fixed = TRUE)))
+  ## naming sentence re-ruled 2026-10-15: "NR3C1 (y, q = ..., unit p ...,
+  ## carried by the <lens> lens; ...)"
+  expect_true(any(grepl("NR3C1 \\(y, q = [0-9.]+, unit p [0-9.]+, carried by the diffuse lens", sm)))
   ## the units table on disk agrees with the object
   ut <- utils::read.csv(file.path(od, "tables", "units.csv"))
   expect_identical(ut$best_lens[ut$level == "gene" & ut$unit == "NR3C1"], "diffuse")
@@ -153,7 +155,7 @@ test_that("spec 63: a dense consistent gene is NAMED by a directional lens, not 
   expect_lt(min(u$p_coherence_adj, u$p_composite_adj), 0.05)
   expect_gt(u$p_diffuse_adj, 0.05)
   sm <- readLines(file.path(od, "summary.md"))
-  expect_true(any(grepl(sprintf("NR3C1 (y, carried by the %s lens", u$best_lens),
-                        sm, fixed = TRUE)))
-  expect_false(any(grepl("NR3C1 (y, carried by the diffuse lens", sm, fixed = TRUE)))
+  expect_true(any(grepl(sprintf("NR3C1 \\(y, q = [0-9.]+, unit p [0-9.]+, carried by the %s lens",
+                                u$best_lens), sm)))
+  expect_false(any(grepl("NR3C1 \\(y, q = [0-9.]+, unit p [0-9.]+, carried by the diffuse lens", sm)))
 })

@@ -97,6 +97,15 @@
 #'   that defends against BOTH multiplicities - the cross-lens combination
 #'   is absorbed by ACAT (Liu & Xie 2020), the cross-unit search by the
 #'   calibration - and is most powerful when all three lenses agree.
+#'   \code{q_unit} is the Benjamini-Hochberg q-value of \code{p_unit} within
+#'   the family, and \code{q_unit_dep} its dependence-calibrated version: the
+#'   share of permutation draws in which BH, run at the level needed to name
+#'   this unit, would have named something in a family without signal
+#'   (\code{attr(., "unit_null_qmin")} holds each draw's smallest BH-adjusted
+#'   p). Naming at \code{q_unit_dep <= fdr} is the package's naming rule
+#'   (PI ruling 2026-10-15); it fires in a fraction \code{fdr} of null
+#'   families under the family's measured lens and unit dependence.
+#'   References: Benjamini & Hochberg (1995); Yekutieli & Benjamini (1999).
 #'   \code{attr(., "probe_fits")} is the per-probe fit the lenses were built
 #'   from (\code{column}, \code{b}, \code{se} of each standardised,
 #'   covariate-adjusted, random-intercept-transformed probe on the tested
@@ -500,6 +509,21 @@ dmsa_triangulate <- function(M, data, rhs, term, units, alignment, block = NULL,
       out[[pc]][unt] <- NA_real_
     out$n_lenses_05[unt] <- NA_integer_
   }
+  ## ---- the naming statistic (PI ruling 2026-10-15) -----------------------
+  ## Benjamini-Hochberg on the unit p within this level-local family, with
+  ## the level calibrated to the family's OWN dependence. q_unit is ordinary
+  ## BH. q_unit_dep is the share of permutation draws in which BH, run at
+  ## exactly the level needed to name this unit, would have named SOMETHING
+  ## in a family with no signal at all - the true null false-alarm rate of
+  ## that decision under the measured dependence between lenses (already
+  ## priced into p_unit) and between units. Naming at q_unit_dep <= fdr
+  ## therefore fires in a fraction fdr of null families whatever the
+  ## correlation structure; FDR <= fdr when some units carry signal was
+  ## verified by simulation on the real 12-gene oxytocin geometry
+  ## (ERRCTL_DECISION_v2.md). Untestable units stay NA.
+  QD <- .q_unit_dep(out$p_unit, Unul)
+  out$q_unit <- QD$q
+  out$q_unit_dep <- QD$q_dep
   rownames(out) <- NULL
   ## the reorder is a data.frame subset, which drops custom attributes -
   ## re-attach them after it so union_null_min reaches the caller
@@ -509,6 +533,7 @@ dmsa_triangulate <- function(M, data, rhs, term, units, alignment, block = NULL,
   attr(out, "weighting") <- weighting
   attr(out, "union_null_min") <- Mb
   attr(out, "omnibus_null_min") <- Mo_
+  attr(out, "unit_null_qmin") <- QD$qmin
   ## spec 52: the per-probe fit the lenses were built from - b and se of
   ## each (standardised, covariate-adjusted, random-intercept-transformed
   ## when one was declared) probe on the tested term. The report's locus
@@ -520,4 +545,43 @@ dmsa_triangulate <- function(M, data, rhs, term, units, alignment, block = NULL,
                row.names = NULL),
     dfr = dfr, ri_gamma = ri_gamma, term = term)
   out
+}
+
+## Dependence-calibrated Benjamini-Hochberg for one level-local family.
+## p_obs: observed unit p's (NA = untestable). Unul: B x U permutation null of
+## the unit statistic (larger = stronger), columns in the order of p_obs.
+## Returns the BH q-values, the calibrated q-values and, per null draw, the
+## smallest BH-adjusted p that draw would have produced (the least strict BH
+## level at which it names anything).
+.q_unit_dep <- function(p_obs, Unul) {
+  U <- length(p_obs)
+  q <- q_dep <- rep(NA_real_, U)
+  ok <- is.finite(p_obs)
+  if (!any(ok) || is.null(Unul) || !length(Unul))
+    return(list(q = q, q_dep = q_dep, qmin = numeric(0)))
+  Unul <- as.matrix(Unul)
+  q[ok] <- stats::p.adjust(p_obs[ok], method = "BH")
+  ## each draw's own unit p's, by the same (1 + count) / (B + 1) convention
+  ## the observed p_unit uses (the draw counts itself, as the observed does)
+  Pn <- apply(Unul[, ok, drop = FALSE], 2, function(v) {
+    nf <- sum(is.finite(v))
+    (1 + nf - rank(v, ties.method = "min", na.last = "keep")) / (nf + 1)
+  })
+  Pn <- matrix(Pn, ncol = sum(ok))
+  ## the smallest BH-adjusted p of a draw is min_j p_(j) * k / j over its k
+  ## finite p's (sorted ascending) - vectorised, no per-draw p.adjust()
+  S <- if (ncol(Pn) > 1L) t(apply(Pn, 1, sort, na.last = TRUE)) else Pn
+  S <- matrix(S, nrow = nrow(Pn))
+  kb <- rowSums(is.finite(S))
+  V <- S * outer(kb, seq_len(ncol(S)), function(k, j) k / j)
+  V[!is.finite(V)] <- Inf
+  qmin <- pmin(apply(V, 1, min), 1)
+  qmin[kb == 0L | !is.finite(qmin)] <- NA_real_
+  nf <- sum(is.finite(qmin))
+  if (nf) {
+    sq <- sort(qmin[is.finite(qmin)])
+    q_dep[ok] <- (1 + findInterval(q[ok], sq)) / (nf + 1)
+    o <- order(q[ok]); qd <- q_dep[ok]; qd[o] <- cummax(qd[o]); q_dep[ok] <- qd
+  }
+  list(q = q, q_dep = pmin(q_dep, 1), qmin = qmin)
 }

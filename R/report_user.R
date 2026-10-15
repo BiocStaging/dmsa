@@ -89,13 +89,20 @@
                         ri_group = if (.nz(frame$chip_random))
                                      frame$data[[frame$chip_random]] else NULL)
   r$system_id <- s$system_id; r$system <- s$system; r$outcome <- oc
-  ## realized family-wise error of the any-lens naming rule IN THIS FAMILY,
+  ## realized family-wise error of the pre-registered any-lens rule IN THIS FAMILY,
   ## measured from the run's own permutation stream (share of null draws
   ## whose best adjusted p anywhere in the family clears alpha) - the
   ## design-specific number the MS's ".04-.12" generalises
   .mb <- attr(r, "union_null_min")
   r$fwer_realized <- if (length(.mb) && any(is.finite(.mb)))
     mean(.mb < frame$alpha, na.rm = TRUE) else NA_real_
+  ## the null false-alarm rate of ordinary BH at the naming level in THIS
+  ## family (PI ruling 2026-10-15): the naming rule itself is calibrated to
+  ## fire in a fraction fdr of null families; this shows what the uncalibrated
+  ## BH would have done under the family's measured dependence
+  .qm <- attr(r, "unit_null_qmin")
+  r$null_alarm_bh <- if (length(.qm) && any(is.finite(.qm)))
+    mean(.qm <= (frame$fdr %||% .10), na.rm = TRUE) else NA_real_
   r
 }
 
@@ -909,8 +916,8 @@
 ## Spec 29-38 (2026-08-29): the overview obeys FIGURE RULES instead of
 ## growing without bound. One panel PER SYSTEM, each in that system's own
 ## accent colour; at most 40 units per panel, further units paginated into
-## _p2, _p3, ... files; units whose joint (any-lens) adjusted p falls below
-## 0.20 get a light background band so near-threshold rows catch the eye
+## _p2, _p3, ... files; units whose calibrated q (re-ruled 2026-10-15) falls below
+## twice the FDR level get a light background band so near-threshold rows catch the eye
 ## without claiming significance. Returns every file written.
 .rp_fig_overview <- function(frame, res, oc, file) {
   r0 <- res[res$outcome == oc & res$n_probes > 0, , drop = FALSE]
@@ -926,12 +933,18 @@
   ## everything in this panel is keyed to ONE statistic - the best lens's
   ## family-adjusted p, which is the naming rule (the dots ARE the per-lens
   ## adjusted p's, so a dot left of the alpha line and a bold label and a
-  ## shaded row now all say the same thing; PI, 2026-08-29)
+  ## shaded row now all say the same thing; PI, 2026-08-29). Re-ruled
+  ## 2026-10-15: the naming statistic is the dependence-calibrated q, drawn
+  ## as a black diamond against the FDR line; order, bold and shading follow
+  ## it. The three coloured dots stay as the pre-registered any-lens view.
   r0$.lens_adj <- pmin(r0$p_coherence_adj, r0$p_composite_adj,
                        r0$p_diffuse_adj, na.rm = TRUE)
+  .fdr <- frame$fdr %||% .10
+  if (is.null(r0$q_unit_dep)) r0$q_unit_dep <- NA_real_
   for (si in seq_along(sids)) {
     rs <- r0[r0$system_id == sids[si], , drop = FALSE]
-    rs <- rs[order(rs$.lens_adj, rs$p_unit_adj, rs$p_omnibus), , drop = FALSE]
+    rs <- rs[order(rs$q_unit_dep, rs$p_unit, rs$.lens_adj, rs$p_omnibus),
+             , drop = FALSE]
     pages <- split(seq_len(nrow(rs)), ceiling(seq_len(nrow(rs)) / 40))
     for (pg in seq_along(pages)) {
       r <- rs[pages[[pg]], , drop = FALSE]
@@ -953,12 +966,13 @@
                      bty = "n")
       ## near-threshold shading BEFORE the points so it sits underneath -
       ## keyed to the SAME statistic as bold and the dots (the naming rule)
-      near <- which(is.finite(r$.lens_adj) & r$.lens_adj < 0.20)
+      near <- which(is.finite(r$q_unit_dep) & r$q_unit_dep < 2 * .fdr)
       for (k in near)
         graphics::rect(0.0015, yy[k] - .42, 1.45, yy[k] + .42,
                        col = grDevices::adjustcolor(syscol[si], .10),
                        border = NA)
       graphics::abline(v = frame$alpha, col = "grey55", lty = 2)
+      graphics::abline(v = .fdr, col = "black", lty = 3)
       at <- c(.005, .01, .02, .05, .1, .2, .5, 1)
       graphics::axis(1, at = at, labels = at, cex.axis = .62, col = "grey60",
                      col.axis = "grey30")
@@ -976,13 +990,16 @@
       graphics::points(r$p_composite_adj, yy, pch = 19, cex = .7, col = CMP)
       graphics::points(r$p_diffuse_adj, yy - .16, pch = 19, cex = .7,
                        col = DIF)
+      graphics::points(r$q_unit_dep, yy, pch = 18, cex = .95, col = "black")
       head()
-      graphics::mtext("family-adjusted p", side = 1, line = 2.4, cex = .7)
+      graphics::mtext("calibrated q / family-adjusted p", side = 1,
+                      line = 2.4, cex = .7)
       graphics::mtext(sysnm, side = 3, line = -0.1, adj = 1, cex = .6,
                       col = syscol[si], font = 2)
-      graphics::legend("bottomleft", bty = "n", cex = .6, pch = 19,
-                       col = c(COH, CMP, DIF),
-                       legend = c("coherence", "composite", "diffuse"))
+      graphics::legend("bottomleft", bty = "n", cex = .6, pch = c(18, 19, 19, 19),
+                       col = c("black", COH, CMP, DIF),
+                       legend = c("calibrated q", "coherence",
+                                  "composite", "diffuse"))
       grDevices::dev.off()
       files <- c(files, fp)
     }
@@ -1396,6 +1413,9 @@ dmsa_report.dmsa_frame <- function(frame, progress = NULL, beep = NULL,
       .mb <- attr(r, "union_null_min")
       r$fwer_realized <- if (length(.mb) && any(is.finite(.mb)))
         mean(.mb < frame$alpha, na.rm = TRUE) else NA_real_
+      .qm <- attr(r, "unit_null_qmin")
+      r$null_alarm_bh <- if (length(.qm) && any(is.finite(.qm)))
+        mean(.qm <= (frame$fdr %||% .10), na.rm = TRUE) else NA_real_
       all_res[[paste(oc, "system")]] <- r
       bar$tick()
       }
@@ -1457,13 +1477,29 @@ dmsa_report.dmsa_frame <- function(frame, progress = NULL, beep = NULL,
     ## inflation, and the PI ruled for power with disclosure. p_unit_adj (the
     ## exact joint union test) stays computed and printed beside every named
     ## unit as the honesty line, but no longer gates.
-    RES$selected <- RES$any_lens_hit
-    ## the EXACT-CONFIRMED badge (PI ruling, 2026-08-29): a named unit whose
-    ## second-level Westfall-Young minP union p also clears alpha carries an
-    ## exact family-wise .05 claim on top of the disclosed any-lens naming.
-    ## Additive: naming and every printed number are unchanged by the badge.
+    ## RE-RULED (PI, 2026-10-15; ERRCTL_DECISION_v2.md). The any-lens rule
+    ## above stays computed and is reported beside the naming rule as the
+    ## PRE-REGISTERED rule (`prereg_any_lens`), but it no longer names. On the
+    ## pre-registered single engine its coherence lens corrects RAW statistics,
+    ## so the family's alpha goes to the units with the widest null (97% to
+    ## AVP in the 12-gene oxytocin family), and the union of three lens
+    ## families fires in ~13% of null families. A unit is now NAMED when its
+    ## dependence-calibrated Benjamini-Hochberg q-value on the unit p (best of
+    ## the three lenses, priced by the permutation null of that maximum) is at
+    ## or below `fdr` within its level-local family: every unit is judged on
+    ## its own calibrated scale, the cross-lens and cross-unit dependence are
+    ## measured rather than assumed, and the stated error rate is the true
+    ## one (null families: fdr; FDR <= fdr in simulation).
+    RES$prereg_any_lens <- RES$any_lens_hit
+    .fdr <- frame$fdr %||% .10
+    RES$selected <- is.finite(RES$q_unit_dep) & RES$q_unit_dep <= .fdr &
+      RES$n_probes > 0
+    ## the EXACT-CONFIRMED badge (re-ruled 2026-10-15): a named unit whose
+    ## joint union test - the max over the three standardised lenses,
+    ## family-corrected on the same stream (p_unit_adj) - also clears alpha
+    ## carries an exact, balanced family-wise claim on top of its FDR naming.
     RES$exact_confirmed <- RES$selected &
-      is.finite(RES$p_union_exact) & RES$p_union_exact < frame$alpha
+      is.finite(RES$p_unit_adj) & RES$p_unit_adj < frame$alpha
     ## the OMNIBUS-CONFIRMED badge (PI-approved 2026-08-29): the
     ## family-corrected ACAT omnibus defends against BOTH multiplicities
     ## (cross-lens by the ACAT combination, cross-gene by permutation minP
@@ -1678,7 +1714,8 @@ dmsa_report.dmsa_frame <- function(frame, progress = NULL, beep = NULL,
                           "p_unit", "p_unit_adj", "p_omnibus",
                           "best_lens", "selected_coherence",
                           "selected_composite", "selected_diffuse",
-                          "n_lenses_hit", "any_lens_hit", "selected",
+                          "n_lenses_hit", "any_lens_hit", "prereg_any_lens",
+                          "q_unit", "q_unit_dep", "null_alarm_bh", "selected",
                           "p_union_exact", "exact_confirmed",
                           "p_omnibus_adj", "omnibus_confirmed",
                           "fwer_realized"),
@@ -1834,51 +1871,67 @@ dmsa_report.dmsa_frame <- function(frame, progress = NULL, beep = NULL,
       }
     } else if (!is.null(RES)) {
       hits <- RES[RES$selected & RES$level == "gene", , drop = FALSE]
-      ## the naming rule is the MS's pre-registered ANY-LENS rule: a gene is
-      ## named when some lens's family-adjusted p clears alpha, and the
-      ## carrying lens is always stated. The exact joint union p (unit adj)
-      ## is printed beside every named gene as the honesty line - it is the
-      ## same claim tested with exact family-wise control, and a reader sees
-      ## both numbers at once instead of meeting them in different places.
+      .fdr <- frame$fdr %||% .10
+      ## the naming rule (PI ruling 2026-10-15): dependence-calibrated BH on
+      ## the unit p within each level-local family. The carrying lens is still
+      ## stated, the exact balanced union test (p_unit_adj) rides along as the
+      ## family-wise badge, and the pre-registered any-lens rule is reported
+      ## right after, so a reader sees both decisions on the same evidence.
       md <- c(md, if (nrow(hits)) sprintf(
-        "%d gene(s) named by the any-lens rule (some lens's family-adjusted p < %.2g; %s within each lens's own family; the rule's realized family-wise error, measured from this run's own permutations, is stated below): %s.",
-        nrow(hits), frame$alpha, frame$correction,
-        paste(sprintf("%s (%s, carried by the %s lens, lens adj %.4f; exact union p %.4f; family-corrected omnibus %.4f%s%s)",
+        "%d gene(s) named at FDR %.2g (Benjamini-Hochberg on each gene's best-of-three-lens permutation p within its level-local family, level calibrated to the family's own dependence; q below is that calibrated q): %s.",
+        nrow(hits), .fdr,
+        paste(sprintf("%s (%s, q = %.3f, unit p %.4f, carried by the %s lens; joint union adj %.4f; family-corrected omnibus %.4f%s%s)",
                       .rp_unit_label(frame, hits$unit, hits$level),
                       vapply(hits$outcome, function(.o) .lab(frame, .o), character(1)),
-                      hits$best_lens,
-                      pmin(hits$p_coherence_adj, hits$p_composite_adj,
-                           hits$p_diffuse_adj, na.rm = TRUE),
-                      hits$p_union_exact, hits$p_omnibus_adj,
+                      hits$q_unit_dep, hits$p_unit, hits$best_lens,
+                      hits$p_unit_adj, hits$p_omnibus_adj,
                       ifelse(hits$exact_confirmed %in% TRUE,
                              " - EXACT-CONFIRMED", ""),
                       ifelse(hits$omnibus_confirmed %in% TRUE,
                              " - OMNIBUS-CONFIRMED", "")),
               collapse = "; "))
-        else "No gene is named: no lens carries any gene past its own family-adjusted bar.")
-      ## the run's own measured error rate, per gene family - the
-      ## design-specific number behind the MS's ".04-.12" disclosure - and
-      ## what the badge means, said once
-      .fw <- unique(RES[RES$level == "gene" & is.finite(RES$fwer_realized),
-                        c("system", "outcome", "fwer_realized"), drop = FALSE])
+        else sprintf("No gene is named at FDR %.2g: no gene's calibrated q reaches the bar in its family.", .fdr))
+      ## the pre-registered any-lens rule, on the same evidence, beside it
+      .pr <- RES[RES$level == "gene" & RES$prereg_any_lens %in% TRUE, , drop = FALSE]
+      md <- c(md, "", if (nrow(.pr)) sprintf(
+        "Pre-registered any-lens rule (some lens's family-adjusted p < %.2g, %s within each lens's own family), reported beside the naming rule: %s.",
+        frame$alpha, frame$correction,
+        paste(sprintf("%s (%s, %s lens, lens adj %.4f%s)",
+                      .rp_unit_label(frame, .pr$unit, .pr$level),
+                      vapply(.pr$outcome, function(.o) .lab(frame, .o), character(1)),
+                      .pr$best_lens,
+                      pmin(.pr$p_coherence_adj, .pr$p_composite_adj,
+                           .pr$p_diffuse_adj, na.rm = TRUE),
+                      ifelse(.pr$selected %in% TRUE, "; also named", "; not named at the FDR level")),
+              collapse = "; "))
+        else sprintf("Pre-registered any-lens rule (some lens's family-adjusted p < %.2g), reported beside the naming rule: no gene passes.", frame$alpha))
+      ## the run's own measured error rates, per gene family
+      .fw <- unique(RES[RES$level == "gene" & (is.finite(RES$fwer_realized) |
+                          is.finite(RES$null_alarm_bh %||% NA_real_)),
+                        intersect(c("system", "outcome", "fwer_realized",
+                                    "null_alarm_bh"), names(RES)), drop = FALSE])
       if (nrow(.fw))
         md <- c(md, "", sprintf(
-          paste0("Realized family-wise error of the any-lens naming rule, ",
-                 "measured from this run's own permutation stream ",
-                 "(second-level Westfall-Young minP): %s. Two badges ride ",
-                 "on top of the naming rule, each an exact family-wise ",
-                 "%.2g claim: EXACT-CONFIRMED (dagger) = the calibrated ",
-                 "any-lens union p also clears alpha (strongest single ",
-                 "lens, corrected for lenses AND family); ",
-                 "OMNIBUS-CONFIRMED (double dagger) = the family-corrected ",
-                 "ACAT omnibus clears alpha (all three lenses combined, ",
-                 "corrected for lenses AND family - rewards cross-lens ",
-                 "agreement). Alpha here is %.2g."),
-          paste(sprintf("%s/%s %.3f", .fw$system,
+          paste0("Error rates measured from this run's own permutation ",
+                 "stream, per gene family (system/outcome: realized ",
+                 "family-wise error of the pre-registered any-lens rule; ",
+                 "null false-alarm of ordinary BH at %.2g, before the ",
+                 "dependence calibration that sets it to %.2g): %s. Two ",
+                 "badges ride on a named gene, each an exact family-wise ",
+                 "%.2g claim: EXACT-CONFIRMED (dagger) = the joint union ",
+                 "test (max over the three standardised lenses, ",
+                 "family-corrected) clears alpha; OMNIBUS-CONFIRMED (double ",
+                 "dagger) = the family-corrected ACAT omnibus clears alpha ",
+                 "(rewards cross-lens agreement)."),
+          .fdr, .fdr,
+          paste(sprintf("%s/%s %.3f, %s", .fw$system,
                         vapply(.fw$outcome, function(.o) .lab(frame, .o),
                                character(1)),
-                        .fw$fwer_realized), collapse = "; "),
-          frame$alpha, frame$alpha))
+                        .fw$fwer_realized,
+                        if (is.null(.fw$null_alarm_bh)) "-" else
+                          sprintf("%.3f", .fw$null_alarm_bh)),
+                collapse = "; "),
+          frame$alpha))
       ## every named gene's panel is pointed to by name - and if one could
       ## not be drawn even by the bare fallback, that is said here, not
       ## discovered as a missing file
@@ -1918,11 +1971,12 @@ dmsa_report.dmsa_frame <- function(frame, progress = NULL, beep = NULL,
           if (isTRUE(frame$tables))
             paste0(" The exact CpGs tested per gene, with their annotation, ",
                    "are in `tables/analysis_set.csv`.") else ""), "")
-        ## ONE bar everywhere (PI, 2026-08-29): the table is ordered by the
-        ## SAME statistic that names a finding - the best lens's
-        ## family-adjusted p. Bold = named. The exact joint union p rides
-        ## along as the honesty line, and the raw omnibus says (raw) in its
-        ## own header so an uncorrected number can never read as a verdict.
+        ## ONE bar everywhere (PI, 2026-08-29; statistic re-ruled 2026-10-15):
+        ## the table is ordered by the SAME statistic that names a finding -
+        ## the dependence-calibrated q. Bold = named. The pre-registered
+        ## any-lens column (best lens's family-adjusted p) sits beside it, and
+        ## the raw omnibus says (raw) in its own header so an uncorrected
+        ## number can never read as a verdict.
         gl_all$.lens_adj <- pmin(gl_all$p_coherence_adj,
                                  gl_all$p_composite_adj,
                                  gl_all$p_diffuse_adj, na.rm = TRUE)
@@ -1930,19 +1984,19 @@ dmsa_report.dmsa_frame <- function(frame, progress = NULL, beep = NULL,
           g2 <- gl_all[gl_all$outcome == .oc2, , drop = FALSE]
           for (.sy in unique(g2$system)) {
             gs2 <- g2[g2$system == .sy, , drop = FALSE]
-            gs2 <- gs2[order(gs2$.lens_adj, gs2$p_unit_adj, gs2$p_omnibus),
+            gs2 <- gs2[order(gs2$q_unit_dep, gs2$p_unit, gs2$p_omnibus),
                        , drop = FALSE]
             topn <- utils::head(gs2, 10L)
             md <- c(md, sprintf(
-              "**%s** - %s: %d gene(s) tested (the %s family). Bold = named (best lens adj < %.2g); \u2020 = exact-confirmed (calibrated union); \u2021 = omnibus-confirmed (family-corrected ACAT); both are exact family-wise %.2g claims.%s",
-              .sy, .lab(frame, .oc2), nrow(gs2), frame$correction, frame$alpha,
-              frame$alpha,
+              "**%s** - %s: %d gene(s) tested. Bold = named (calibrated q <= %.2g); \u2020 = exact-confirmed (joint union adj < %.2g); \u2021 = omnibus-confirmed (family-corrected ACAT); both are exact family-wise %.2g claims. The pre-registered any-lens column is the best lens's family-adjusted p (%s within the lens).%s",
+              .sy, .lab(frame, .oc2), nrow(gs2), frame$fdr %||% .10,
+              frame$alpha, frame$alpha, frame$correction,
               if (nrow(gs2) > nrow(topn))
                 sprintf(" Top %d by the naming statistic; all %d are in `tables/units.csv`.",
                         nrow(topn), nrow(gs2)) else ""), "",
-              "| gene | CpGs | concord. | dir | best lens | lens adj | exact union p | omnibus (raw) | omnibus adj |",
-              "|---|---|---|---|---|---|---|---|---|",
-              sprintf("| %s%s%s%s | %d | %.2f | %s | %s | %s | %s | %.4f | %s |",
+              "| gene | CpGs | concord. | dir | best lens | q (calibrated) | unit p | joint union adj | pre-registered: lens adj | omnibus (raw) | omnibus adj |",
+              "|---|---|---|---|---|---|---|---|---|---|---|",
+              sprintf("| %s%s%s%s | %d | %.2f | %s | %s | %s | %s | %s | %s | %.4f | %s |",
                       ifelse(topn$selected, "**", ""),
                       paste0(topn$unit, ifelse(topn$selected, "**", "")),
                       ifelse(topn$exact_confirmed %in% TRUE, " \u2020", ""),
@@ -1951,8 +2005,11 @@ dmsa_report.dmsa_frame <- function(frame, progress = NULL, beep = NULL,
                       ifelse(is.na(topn$direction), "-",
                              ifelse(topn$direction > 0, "+1", "-1")),
                       topn$best_lens,
-                      sprintf("%.4f", topn$.lens_adj),
-                      sprintf("%.4f", topn$p_union_exact),
+                      sprintf("%.3f", topn$q_unit_dep),
+                      sprintf("%.4f", topn$p_unit),
+                      sprintf("%.4f", topn$p_unit_adj),
+                      sprintf("%.4f%s", topn$.lens_adj,
+                              ifelse(topn$prereg_any_lens %in% TRUE, " *", "")),
                       topn$p_omnibus,
                       sprintf("%.4f", topn$p_omnibus_adj)), "")
           }
@@ -1967,35 +2024,35 @@ dmsa_report.dmsa_frame <- function(frame, progress = NULL, beep = NULL,
       modr <- RES[RES$selected & RES$level == "module", , drop = FALSE]
       if (nrow(modr)) {
         md <- c(md, "", sprintf(
-          "%d module(s) named by the any-lens rule within their own system's family: %s.",
-          nrow(modr),
-          paste(sprintf("%s (%s, carried by the %s lens, lens adj %.4f; joint union p %.4f)",
+          "%d module(s) named at FDR %.2g within their own system's family: %s.",
+          nrow(modr), frame$fdr %||% .10,
+          paste(sprintf("%s (%s, q = %.3f, carried by the %s lens; pre-registered lens adj %.4f; joint union adj %.4f)",
                         modr$unit,
                         vapply(modr$outcome, function(.o) .lab(frame, .o), character(1)),
-                        modr$best_lens,
+                        modr$q_unit_dep, modr$best_lens,
                         pmin(modr$p_coherence_adj, modr$p_composite_adj,
                              modr$p_diffuse_adj, na.rm = TRUE),
                         modr$p_unit_adj), collapse = "; ")))
       }
       sysr <- RES[RES$level == "system", , drop = FALSE]
       ## the system line leads with the SAME naming statistic as every other
-      ## level (the best lens's family-adjusted p; the MS names its
-      ## system-level cell the same way - "selects oxytocin/anxiety on the
-      ## diffuse statistic, adjusted .0095"); the star marks naming, and the
-      ## raw omnibus is labelled raw so it cannot read as the verdict
+      ## level (re-ruled 2026-10-15: the calibrated q), with the
+      ## pre-registered best-lens adjusted p beside it; the star marks
+      ## naming, and the raw omnibus is labelled raw so it cannot read as
+      ## the verdict
       if (nrow(sysr)) {
         .sl <- pmin(sysr$p_coherence_adj, sysr$p_composite_adj,
                     sysr$p_diffuse_adj, na.rm = TRUE)
         md <- c(md, "",
-        sprintf("System level (family = the %d named system(s); * = named by the any-lens rule): %s.",
-                nrow(frame$systems),
-                paste(sprintf("%s/%s lens adj %.4f%s (carried by %s; omnibus raw %.4f; joint union p %.4f)",
+        sprintf("System level (family = the %d named system(s); * = named at FDR %.2g): %s.",
+                nrow(frame$systems), frame$fdr %||% .10,
+                paste(sprintf("%s/%s q %.3f%s (unit p %.4f, carried by %s; pre-registered lens adj %.4f; omnibus raw %.4f; joint union adj %.4f)",
                               sysr$unit,
                               vapply(sysr$outcome, function(.o) .lab(frame, .o),
                                      character(1)),
-                              .sl, ifelse(sysr$selected, " *", ""),
-                              sysr$best_lens, sysr$p_omnibus,
-                              sysr$p_unit_adj),
+                              sysr$q_unit_dep, ifelse(sysr$selected, " *", ""),
+                              sysr$p_unit, sysr$best_lens, .sl,
+                              sysr$p_omnibus, sysr$p_unit_adj),
                       collapse = "; ")))
       }
     }
@@ -2258,7 +2315,7 @@ dmsa_report.dmsa_frame <- function(frame, progress = NULL, beep = NULL,
                  bridge = bridge, figures = figs, tables = tabs,
                  summary = if (frame$summary) smy else NULL,
                  outdir = outdir, frame_args = frame[c(
-                   "outcome", "correction", "B", "alpha", "cpg_map",
+                   "outcome", "correction", "B", "alpha", "fdr", "cpg_map",
                    "moderation", "mod", "mod2", "frame_role", "type")],
                  minutes = as.numeric(Sys.time() - t_start, units = "mins")),
             class = "dmsa_report")
@@ -2413,16 +2470,15 @@ print.dmsa_report <- function(x, ...) {
   if (!is.null(x$results)) {
     hits <- x$results[x$results$selected & x$results$level == "gene", ,
                       drop = FALSE]
-    cat(sprintf("  gene level: %d unit(s) named by the any-lens rule\n",
-                nrow(hits)))
+    cat(sprintf("  gene level: %d unit(s) named (calibrated BH, FDR %.2g)\n",
+                nrow(hits), x$frame_args$fdr %||% .10))
     for (i in seq_len(nrow(hits)))
-      cat(sprintf("   - %-10s %-24s %s  lens adj %.4f (%s)  exact union p %.4f  omnibus adj %.4f%s%s\n",
+      cat(sprintf("   - %-10s %-24s %s  q %.3f (%s lens)  joint union adj %.4f  omnibus adj %.4f%s%s\n",
                   hits$unit[i], substr(hits$system[i], 1, 24),
                   hits$outcome[i],
-                  min(hits$p_coherence_adj[i], hits$p_composite_adj[i],
-                      hits$p_diffuse_adj[i], na.rm = TRUE),
+                  hits$q_unit_dep[i] %||% NA_real_,
                   hits$best_lens[i],
-                  hits$p_union_exact[i] %||% NA_real_,
+                  hits$p_unit_adj[i] %||% NA_real_,
                   hits$p_omnibus_adj[i] %||% NA_real_,
                   if (hits$exact_confirmed[i] %in% TRUE)
                     "  EXACT-CONFIRMED" else "",
@@ -3534,8 +3590,8 @@ print.dmsa_report <- function(x, ...) {
           "thing it is not."), "")
   if (!nrow(hits) && !nrow(modhits)) {
     out <- c(out,
-      "**Results (nothing named).** No lens carried any unit past its own",
-      "family-adjusted bar, so nothing is named under the any-lens rule.",
+      sprintf("**Results (nothing named).** No unit reached the naming bar (calibrated q <= %.2g)", frame$fdr %||% .10),
+      "within its level-local family, so nothing is named.",
       "This is a calibrated null, not a failed run: report the families",
       "tested, the number of units in each, and the engine, so a reader can",
       "see what the design could have found.", "")
@@ -3546,28 +3602,31 @@ print.dmsa_report <- function(x, ...) {
       fam <- sum(RES$level == "gene" & RES$system == h$system &
                    RES$outcome == h$outcome & RES$n_probes > 0, na.rm = TRUE)
       out <- c(out, sprintf(
-        paste0("> In the %s system, **%s** survived its %d-gene level-local ",
-               "family correction on the **%s** lens (family-adjusted ",
-               "p = %.4f; %s within the lens, B = %s, %s engine). Its %d ",
-               "direction-called CpGs showed sign concordance %.2f; the ",
-               "ACAT omnibus across the three lenses was p = %.4f raw ",
-               "(the cross-LENS multiplicity is absorbed by the ACAT ",
-               "combination) and p = %.4f family-corrected by permutation ",
-               "minP on the same stream%s; the exact any-lens union p ",
-               "(strongest single lens, corrected across lenses AND the ",
-               "family) = %.4f%s. %s"),
-        h$system, h$unit, fam, h$best_lens,
-        min(h$p_coherence_adj, h$p_composite_adj, h$p_diffuse_adj,
-            na.rm = TRUE),
-        frame$correction, format(frame$B, big.mark = ","),
-        frame$weighting %||% "combined", h$n_probes, h$concordance,
+        paste0("> In the %s system, **%s** was named at FDR %.2g within its ",
+               "%d-gene level-local family (dependence-calibrated ",
+               "Benjamini-Hochberg q = %.3f on its best-of-three-lens ",
+               "permutation p = %.4f; B = %s, %s engine), carried by the ",
+               "**%s** lens. Its %d direction-called CpGs showed sign ",
+               "concordance %.2f; the joint union test (max over the three ",
+               "standardised lenses, family-corrected) gave p = %.4f%s, and ",
+               "the ACAT omnibus across the three lenses was p = %.4f raw ",
+               "and p = %.4f family-corrected by permutation minP on the ",
+               "same stream%s. Under the pre-registered any-lens rule ",
+               "(best lens's family-adjusted p = %.4f, %s within the lens) ",
+               "it was %s. %s"),
+        h$system, h$unit, frame$fdr %||% .10, fam, h$q_unit_dep, h$p_unit,
+        format(frame$B, big.mark = ","), frame$weighting %||% "combined",
+        h$best_lens, h$n_probes, h$concordance,
+        h$p_unit_adj %||% NA_real_,
+        if (h$exact_confirmed %in% TRUE)
+          " - an exact, balanced family-wise claim on top of the FDR naming" else "",
         h$p_omnibus, h$p_omnibus_adj %||% NA_real_,
         if (h$omnibus_confirmed %in% TRUE)
           " - an exact family-wise claim from the three lenses COMBINED (ACAT rewards agreement between lenses but does not require it; one dominant lens can carry it)"
         else "",
-        h$p_union_exact %||% NA_real_,
-        if (h$exact_confirmed %in% TRUE)
-          ", so the finding also stands on its best single lens at exact family-wise alpha" else "",
+        min(h$p_coherence_adj, h$p_composite_adj, h$p_diffuse_adj,
+            na.rm = TRUE), frame$correction,
+        if (h$prereg_any_lens %in% TRUE) "also named" else "not named",
         .rp_dir_sentence(frame, h$outcome, h$direction, h$unit)), "")
       out <- c(out, sprintf("  (%s carries it: %s.)", h$best_lens,
                             .rp_lens_gloss(h$best_lens)), "")
@@ -3580,22 +3639,20 @@ print.dmsa_report <- function(x, ...) {
       fam <- sum(RES$level == "module" & RES$system == h$system &
                    RES$outcome == h$outcome & RES$n_probes > 0, na.rm = TRUE)
       out <- c(out, sprintf(
-        paste0("> At the module level, **%s** (%s system) survived its ",
-               "%d-module level-local family correction on the **%s** lens ",
-               "(family-adjusted p = %.4f; %s within the lens, B = %s, %s ",
-               "engine). Its %d direction-called CpGs showed sign concordance ",
-               "%.2f; the ACAT omnibus was p = %.4f raw, %.4f ",
-               "family-corrected, and the exact any-lens union p ",
-               "(corrected across lenses AND the family) = %.4f%s. %s A ",
-               "module pools the probes of several genes, so this is not a ",
-               "claim about any one of them."),
-        h$unit, h$system, fam, h$best_lens,
-        min(h$p_coherence_adj, h$p_composite_adj, h$p_diffuse_adj,
-            na.rm = TRUE),
-        frame$correction, format(frame$B, big.mark = ","),
-        frame$weighting %||% "combined", h$n_probes, h$concordance,
+        paste0("> At the module level, **%s** (%s system) was named at FDR ",
+               "%.2g within its %d-module level-local family ",
+               "(dependence-calibrated q = %.3f, unit p = %.4f; B = %s, %s ",
+               "engine), carried by the **%s** lens. Its %d direction-called ",
+               "CpGs showed sign concordance %.2f; the ACAT omnibus was ",
+               "p = %.4f raw, %.4f family-corrected, and the joint union ",
+               "test (family-corrected) = %.4f%s. %s A module pools the ",
+               "probes of several genes, so this is not a claim about any ",
+               "one of them."),
+        h$unit, h$system, frame$fdr %||% .10, fam, h$q_unit_dep, h$p_unit,
+        format(frame$B, big.mark = ","), frame$weighting %||% "combined",
+        h$best_lens, h$n_probes, h$concordance,
         h$p_omnibus, h$p_omnibus_adj %||% NA_real_,
-        h$p_union_exact %||% NA_real_,
+        h$p_unit_adj %||% NA_real_,
         if (h$exact_confirmed %in% TRUE)
           ", so the finding also stands at exact family-wise alpha" else "",
         .rp_dir_sentence(frame, h$outcome, h$direction, "this module")), "")
@@ -3610,23 +3667,27 @@ print.dmsa_report <- function(x, ...) {
       "with respect to its system's activation tone, and p+ the confidence in ",
       "the direction call. Each unit was tested through three pre-specified ",
       "lenses - coherence, composite and diffuse - on one shared permutation ",
-      "stream (B = %s), combined by an ACAT omnibus. A unit was named a ",
-      "finding when any single lens's family-adjusted p fell below alpha, ",
-      "with the carrying lens reported (the pre-registered any-lens rule). ",
-      "The rule's realized family-wise error was measured exactly, per ",
-      "family, from the same permutation stream by a second-level ",
-      "Westfall-Young minP calibration (Westfall & Young, 1993; Ge, Dudoit ",
-      "& Speed, 2003) - the values for this run are stated in the summary - ",
-      "and every named unit is additionally reported with its exact ",
-      "calibrated union p; units below alpha on that exact test are marked ",
-      "exact-confirmed. Family-wise error within each lens was ",
-      "controlled by Westfall-Young step-down %s **within level-local ",
+      "stream (B = %s), combined by an ACAT omnibus. Each unit's evidence was ",
+      "its permutation p for the best of the three lenses, calibrated ",
+      "against the permutation null of that maximum so the cross-lens ",
+      "dependence is priced exactly. A unit was named when its ",
+      "Benjamini-Hochberg q-value (Benjamini & Hochberg, 1995) within its ",
+      "level-local family was at or below %.2g, with the BH level calibrated ",
+      "on the same permutation stream so that a family without signal is ",
+      "named in exactly that fraction of draws whatever the dependence ",
+      "between units (resampling-calibrated FDR; Yekutieli & Benjamini, ",
+      "1999). Named units that also passed the family-corrected joint ",
+      "union test at alpha are marked exact-confirmed. The pre-registered ",
+      "any-lens rule (any single lens's family-adjusted p below alpha, ",
+      "Westfall-Young step-down %s within each lens) is reported beside the ",
+      "naming rule, with its realized family-wise error measured from the ",
+      "same stream. All corrections operate **within level-local ",
       "families only**: the named systems form one family, the genes of a ",
       "system another, and so on down the %s hierarchy, so a gene is never ",
       "corrected against genes in systems that were not selected. Analyses ",
       "used n = %d, the %s weighting engine, and the %s direction map. %s%s"),
       utils::packageVersion("dmsa"), format(frame$B, big.mark = ","),
-      frame$correction,
+      frame$fdr %||% .10, frame$correction,
       paste(names(frame$levels)[frame$levels], collapse = " > "),
       n_used, frame$weighting %||% "combined", frame$cpg_map,
       ## The moderated Methods block has always named the covariates and the
@@ -3648,30 +3709,39 @@ print.dmsa_report <- function(x, ...) {
 
 ## spec 26/28: what every statistic column in tables/units.csv IS, which
 ## multiplicity it is corrected for, and - the point - whether it NAMES a
-## finding. Only the per-lens family-adjusted p names (the any-lens rule);
-## the union and omnibus tiers confirm; everything else is synthesis a
-## reader may quote but must not mistake for a verdict.
+## finding. Re-ruled 2026-10-15: only the dependence-calibrated q names; the
+## pre-registered any-lens rule is reported beside it; the union and omnibus
+## tiers confirm; everything else is synthesis a reader may quote but must
+## not mistake for a verdict.
 .rp_column_glossary <- function(frame) {
   a <- frame$alpha %||% .05
+  f <- frame$fdr %||% .10
   c("", "### The statistic columns, and which of them name a finding", "",
     paste0("`tables/units.csv` carries one row per unit and level. Read the ",
-           "p-value columns with these roles in mind (alpha = ", format(a), "):"),
+           "p-value columns with these roles in mind (FDR level = ",
+           format(f), ", alpha = ", format(a), "):"),
     "",
     "| column | what it tests | corrected for | names a finding? |",
     "|---|---|---|---|",
     "| `p_coherence`, `p_composite`, `p_diffuse` | one lens each, raw permutation p | nothing (per-unit) | no - raw |",
-    "| `p_coherence_adj`, `p_composite_adj`, `p_diffuse_adj` | the same lens, family-adjusted | the unit's level-local family (maxT/minP within that lens) | **YES - the naming statistic.** A unit is named when ANY of the three is below alpha (the pre-registered any-lens rule); `best_lens` says which carried it |",
-    "| `selected_coherence`, `selected_composite`, `selected_diffuse`, `n_lenses_hit`, `any_lens_hit`, `selected` | the naming rule spelled out per lens; `selected` = `any_lens_hit` | - | `selected` IS the verdict |",
-    "| `fwer_realized` | the realized family-wise error of the any-lens rule in this family, measured from this run's permutations | - | no - the disclosure that accompanies naming |",
-    "| `p_union_exact` | second-level Westfall-Young calibration of the best lens | lenses AND family, exactly | no - CONFIRMS a named unit (dagger, `exact_confirmed`) |",
+    "| `p_unit` | the unit's best lens, calibrated against the permutation null of the best of three | the three lenses, exactly (measured dependence) | no - the evidence the naming rule ranks |",
+    "| `q_unit` | Benjamini-Hochberg q-value of `p_unit` | the unit's level-local family (BH) | no - shown for reference |",
+    "| `q_unit_dep` | `q_unit` with its level calibrated on the family's own permutation stream | lenses AND family, at the measured dependence | **YES - the naming statistic.** A unit is named when it is at or below the FDR level |",
+    "| `selected` | `q_unit_dep` at or below the FDR level | - | `selected` IS the verdict |",
+    "| `null_alarm_bh` | how often ordinary (uncalibrated) BH at the FDR level would name something in this family with no signal, measured from this run's permutations | - | no - shows what the calibration corrected |",
+    "| `p_coherence_adj`, `p_composite_adj`, `p_diffuse_adj` | the same lens, family-adjusted (maxT/minP within that lens) | the unit's level-local family, within one lens | no - the pre-registered any-lens rule; `best_lens` says which lens carries the unit |",
+    "| `selected_coherence`, `selected_composite`, `selected_diffuse`, `n_lenses_hit`, `any_lens_hit`, `prereg_any_lens` | the pre-registered any-lens rule spelled out per lens: named when ANY of the three is below alpha | - | no - reported beside the naming rule |",
+    "| `fwer_realized` | the realized family-wise error of the pre-registered any-lens rule in this family, measured from this run's permutations | - | no - the disclosure that accompanies the pre-registered rule |",
+    "| `p_unit_adj` | the joint max-over-lenses statistic, family-adjusted (the exact-alpha union test) | lenses AND family, exactly | no - CONFIRMS a named unit (dagger, `exact_confirmed`) |",
+    "| `p_union_exact` | second-level Westfall-Young calibration of the any-lens rule's best lens | lenses AND family, exactly | no - optional synthesis; it does not gate naming |",
     "| `p_omnibus` | ACAT combination of the three raw lens p's | lenses only (one valid combined test); NOT the family | no - optional synthesis; never a verdict on its own |",
     "| `p_omnibus_adj` | permutation minP of the omnibus across the family | lenses AND family, exactly | no - CONFIRMS a named unit (double dagger, `omnibus_confirmed`) |",
-    "| `p_unit`, `p_unit_adj` | the joint max-over-lenses statistic, raw and family-adjusted (the exact-alpha union test) | family (joint) | no - optional synthesis, kept as an honesty line; it does not gate naming |",
     "",
-    paste("So: name by `selected` (any lens below alpha within its own family),",
-          "report the carrying lens and its adjusted p, disclose",
-          "`fwer_realized`, and add the dagger tiers where they hold. The",
-          "omnibus and the joint union are synthesis - quote them, do not",
+    paste("So: name by `selected` (calibrated q at or below the FDR level",
+          "within the unit's own family), report the carrying lens, the q and",
+          "the unit p, add the dagger tiers where they hold, and report the",
+          "pre-registered any-lens result beside it with `fwer_realized`. The",
+          "omnibus and the other synthesis columns - quote them, do not",
           "name by them."), "")
 }
 

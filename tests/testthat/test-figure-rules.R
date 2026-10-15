@@ -182,9 +182,12 @@ test_that("every named gene's locus panel is written and named in summary.md", {
   sm <- readLines(file.path(od, "summary.md"))
   expect_true(any(grepl("Each named gene has its locus panel", sm)))
   expect_true(any(grepl(sprintf("locus_%s_", hits$unit[1]), sm)))
-  ## and the headline uses the any-lens wording with the honesty line
-  expect_true(any(grepl("named by the any-lens rule", sm)))
-  expect_true(any(grepl("exact union p", sm)))
+  ## the headline uses the naming rule's wording (re-ruled 2026-10-15:
+  ## calibrated FDR), with the joint union test and the pre-registered
+  ## any-lens rule reported beside it
+  expect_true(any(grepl("named at FDR", sm)))
+  expect_true(any(grepl("joint union adj", sm)))
+  expect_true(any(grepl("Pre-registered any-lens rule", sm)))
   ## the badge tier (PI ruling 2026-08-29): exact_confirmed rides the units
   ## table, implies selected, and the run's measured FWER is stated
   u <- r$results
@@ -194,7 +197,7 @@ test_that("every named gene's locus panel is written and named in summary.md", {
   expect_true(all(!u$omnibus_confirmed | u$selected))
   expect_true(all(u$fwer_realized[is.finite(u$fwer_realized)] >= 0 &
                   u$fwer_realized[is.finite(u$fwer_realized)] <= 1))
-  expect_true(any(grepl("Realized family-wise error", sm)))
+  expect_true(any(grepl("realized family-wise error of the pre-registered any-lens rule", sm)))
 })
 
 ## ---- moderation: runs WITH the main analysis; binary-aware figure ---------

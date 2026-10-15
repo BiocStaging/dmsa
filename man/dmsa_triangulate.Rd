@@ -91,6 +91,15 @@ data.frame, one row per unit: the raw and family-adjusted p under
   that defends against BOTH multiplicities - the cross-lens combination
   is absorbed by ACAT (Liu & Xie 2020), the cross-unit search by the
   calibration - and is most powerful when all three lenses agree.
+  \code{q_unit} is the Benjamini-Hochberg q-value of \code{p_unit} within
+  the family, and \code{q_unit_dep} its dependence-calibrated version: the
+  share of permutation draws in which BH, run at the level needed to name
+  this unit, would have named something in a family without signal
+  (\code{attr(., "unit_null_qmin")} holds each draw's smallest BH-adjusted
+  p). Naming at \code{q_unit_dep <= fdr} is the package's naming rule
+  (PI ruling 2026-10-15); it fires in a fraction \code{fdr} of null
+  families under the family's measured lens and unit dependence.
+  References: Benjamini & Hochberg (1995); Yekutieli & Benjamini (1999).
   \code{attr(., "probe_fits")} is the per-probe fit the lenses were built
   from (\code{column}, \code{b}, \code{se} of each standardised,
   covariate-adjusted, random-intercept-transformed probe on the tested

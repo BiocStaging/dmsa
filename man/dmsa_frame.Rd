@@ -49,6 +49,7 @@ dmsa_frame(
   cpg_map = c("full", "confidence"),
   B = 1999,
   alpha = 0.05,
+  fdr = 0.1,
   seed = 1,
   correction = c("maxT", "minP"),
   weighting = c("combined", "reliability", "flat"),
@@ -319,6 +320,13 @@ redefines system, module or gene membership.}
 
 \item{B, alpha, seed, correction}{inference settings (correction is applied
 within level-local families only).}
+
+\item{fdr}{Level of the naming rule (PI ruling 2026-10-15): a unit is named
+when its dependence-calibrated Benjamini-Hochberg q-value
+(\code{q_unit_dep}, see \code{\link{dmsa_triangulate}}) is at or below
+\code{fdr} within its level-local family. Default .10. \code{alpha}
+remains the level of the family-wise badges and of the per-lens
+pre-registered any-lens rule, which is reported beside the naming rule.}
 
 \item{weighting}{Character. Probe weighting engine within a unit: \code{"combined"} (default) fuses the flat and reliability statistics on one shared permutation stream, \code{"flat"} weights every usable aligned probe equally, \code{"reliability"} weights each probe by its item-rest correlation with the rest of its unit. Weights are computed from methylation alone, so the permutation null is unaffected.}
 

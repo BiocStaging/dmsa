@@ -650,6 +650,12 @@
 #'   redefines system, module or gene membership.
 #' @param B,alpha,seed,correction inference settings (correction is applied
 #'   within level-local families only).
+#' @param fdr Level of the naming rule (PI ruling 2026-10-15): a unit is named
+#'   when its dependence-calibrated Benjamini-Hochberg q-value
+#'   (\code{q_unit_dep}, see \code{\link{dmsa_triangulate}}) is at or below
+#'   \code{fdr} within its level-local family. Default .10. \code{alpha}
+#'   remains the level of the family-wise badges and of the per-lens
+#'   pre-registered any-lens rule, which is reported beside the naming rule.
 #' @param progress Show a 0-100% progress bar while \code{dmsa_report()} runs.
 #'   Defaults to \code{interactive()}: a bar writes carriage returns, which make
 #'   a piped log unreadable, so it is off under \code{Rscript} and in tests.
@@ -727,7 +733,7 @@ dmsa_frame <- function(data, methylation = NULL, map = "alpha",
                        outcome_type = c("gaussian", "logistic", "multinomial"),
                        frame_role = c("predictor", "outcome"),
                        cpg_map = c("full", "confidence"),
-                       B = 1999, alpha = 0.05, seed = 1,
+                       B = 1999, alpha = 0.05, fdr = 0.10, seed = 1,
                        correction = c("maxT", "minP"),
                        weighting = c("combined", "reliability", "flat"),
                        w_floor = 1.5,
@@ -738,6 +744,10 @@ dmsa_frame <- function(data, methylation = NULL, map = "alpha",
                        table_type = c("html", "docx", "rtf"),
                        outdir = "dmsa_output", autofix = TRUE) {
   .fr_explicit <- !missing(frame_role)
+  if (!is.numeric(fdr) || length(fdr) != 1L || !is.finite(fdr) ||
+      fdr <= 0 || fdr >= 1)
+    stop("`fdr` must be a single number between 0 and 1 (default .10)",
+         call. = FALSE)
   chip_effect <- match.arg(chip_effect)
   type <- match.arg(type)
   frame_role <- match.arg(frame_role); cpg_map <- match.arg(cpg_map)
@@ -2285,7 +2295,7 @@ dmsa_frame <- function(data, methylation = NULL, map = "alpha",
     ## spec 51: what is actually fitted, per path, in words. The main path's
     ## direction is fixed by the estimand; the others follow `frame_role`.
     model_orientation = .orient,
-    cpg_map = cpg_map, B = as.integer(B), alpha = alpha, seed = seed,
+    cpg_map = cpg_map, B = as.integer(B), alpha = alpha, fdr = fdr, seed = seed,
     correction = correction, weighting = weighting, w_floor = w_floor,
     palette = palette,
     plots = plots, tables = tables, summary = summary,

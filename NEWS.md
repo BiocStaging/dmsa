@@ -1,3 +1,49 @@
+# dmsa 0.99.19
+
+## Naming rule: dependence-calibrated FDR on the unit p (PI ruling 2026-10-15)
+
+* **A unit is now named by its calibrated q, not by the any-lens rule.**
+  `dmsa_triangulate()` returns two new columns per unit: `q_unit`, the
+  Benjamini-Hochberg q-value of `p_unit` within the level-local family, and
+  `q_unit_dep`, the same decision with its level calibrated on the family's
+  own permutation stream. `p_unit` is each unit's best lens, priced against
+  the permutation null of the best of three, so the cross-lens dependence is
+  measured, not assumed; `q_unit_dep` then measures the cross-unit dependence:
+  it is the share of null draws in which BH, run at the level needed to name
+  the unit, would have named something in a family with no signal. Naming at
+  `q_unit_dep <= fdr` (new `dmsa_frame()` argument, default `.10`) fires in a
+  fraction `fdr` of null families whatever the correlation structure.
+* **Why.** On the pre-registered single engine the coherence lens corrected
+  raw statistics, so maxT gave each family's error budget to the units with
+  the widest permutation null: 97% of it to AVP in the 12-gene oxytocin
+  family, while the other genes needed raw p between 1e-4 and 1e-9. The union
+  of three per-lens families named something in about 13% of null families
+  (11% to 14% across lens correlations .85/.55 and .95/.90). Simulated on that
+  family's real geometry, the calibrated rule matched the any-lens rule's power
+  with one true gene (.58 vs .54), beat it with three (.68 vs .55) and six
+  (.77 vs .57), named something in 10% of null families, and kept FDR at or
+  below .095 in every scenario (ERRCTL_DECISION_v2.md, bench_errctl_v2/).
+* **The pre-registered any-lens rule is still reported, beside it.** The
+  per-lens family-adjusted p's (`p_*_adj`, `correction` within each lens)
+  are unchanged, `any_lens_hit` is kept and duplicated as `prereg_any_lens`,
+  and `fwer_realized` still discloses its realized family-wise error. The
+  summary states both decisions on the same evidence.
+* **EXACT-CONFIRMED now means the joint union test.** The dagger badge
+  requires `p_unit_adj < alpha` (max over the three standardized lenses,
+  family-corrected on the same stream): an exact, balanced family-wise claim
+  on top of the FDR naming. The omnibus badge is unchanged.
+* `null_alarm_bh` per family reports how often uncalibrated BH at `fdr` would
+  have named something under the family's measured dependence, so the size of
+  the calibration is visible.
+* Report: units are ordered and bolded by `q_unit_dep`; the overview figure
+  draws the calibrated q as a black diamond against a dotted FDR line beside
+  the three per-lens dots; the gene table, Results and Methods text, print
+  method and column glossary describe the new rule.
+* Tests: `test-naming-fdr.R` (BH identity, monotonicity, NA handling, null
+  calibration at lens/unit correlation 0 and .8, triangulate columns, report
+  wiring, argument validation). Tests that pinned `selected == any_lens_hit`
+  now pin the new rule.
+
 # dmsa 0.99.18
 
 ## `dmsa_change()` longitudinal inference hardening

@@ -129,7 +129,10 @@ test_that("spec 62: the overview carries only its title", {
   tx <- .fd_pdf_text(ov)
   ## title, axis, lens legend and unit labels - and no explanatory subtitle
   expect_true(any(grepl("^pills - HPA axis", tx)))
-  expect_true(any(grepl("^family-adjusted p$", tx)))
-  expect_true(all(c("coherence", "composite", "diffuse", "NR3C1", "FKBP5", "CRH") %in% tx))
+  ## axis and legend re-ruled 2026-10-15: the calibrated q (the naming
+  ## statistic) is drawn beside the three per-lens adjusted p's
+  expect_true(any(grepl("^calibrated q / family-adjusted p$", tx)))
+  expect_true(all(c("calibrated q", "coherence", "composite", "diffuse",
+                    "NR3C1", "FKBP5", "CRH") %in% tx))
   expect_false(any(grepl("Bold|named by|shaded|dagger|exact-confirmed", tx, ignore.case = TRUE)))
 })

@@ -166,11 +166,12 @@ test_that("the units table carries per-lens survivor flags and p_unit", {
   expect_true(all(c("selected_coherence", "selected_composite",
                     "selected_diffuse", "n_lenses_hit", "any_lens_hit",
                     "p_unit_adj") %in% names(u)))
-  ## E2 RE-RULED (2026-08-29, second PI ruling): naming is the MS's
-  ## pre-registered ANY-LENS rule - some lens's family-adjusted p < alpha -
-  ## with its realized FWER disclosed. p_unit_adj (the exact joint union)
-  ## stays computed and reported as the honesty line but does not gate.
-  expect_identical(u$selected, u$any_lens_hit)
+  ## RE-RULED 2026-10-15 (supersedes E2): naming is the dependence-calibrated
+  ## BH q on p_unit at fdr; the pre-registered any-lens rule is kept beside
+  ## it as prereg_any_lens (= any_lens_hit), with its realized FWER disclosed.
+  expect_identical(u$selected, is.finite(u$q_unit_dep) &
+                     u$q_unit_dep <= f$fdr & u$n_probes > 0)
+  expect_identical(u$prereg_any_lens, u$any_lens_hit)
   expect_true(all(is.finite(u$p_unit_adj[u$n_probes > 0])))
   expect_true(all(u$n_lenses_hit ==
                   u$selected_coherence + u$selected_composite +
