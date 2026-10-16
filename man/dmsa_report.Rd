@@ -75,8 +75,6 @@ value declared on the frame, which itself defaults to \code{interactive()}.}
 \item{beep}{Completion sound. \code{NULL} (default) takes the frame's value.
 \code{TRUE} is \pkg{beepr} sound 8; a number picks another; \code{FALSE}
 is silent. Without \pkg{beepr} installed this is a no-op.}
-
-\item{progress, beep}{console progress and completion sound (frame only).}
 }
 \value{
 For a frame, the report object it has always returned; for a

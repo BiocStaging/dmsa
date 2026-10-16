@@ -16,9 +16,19 @@ dmsa_power_transmit(
 )
 }
 \arguments{
-\item{n}{triads; \code{units} the family size at the level; \code{k} covariates.}
+\item{n}{triads.}
 
-\item{beta_mother, beta_father}{latent slopes; \code{r_mf} parents' correlation; \code{rel} reliability of the scores; \code{alpha}.}
+\item{beta_mother, beta_father}{latent slopes.}
+
+\item{r_mf}{parents' correlation.}
+
+\item{rel}{reliability of the scores.}
+
+\item{units}{the family size at the level.}
+
+\item{k}{number of covariates.}
+
+\item{alpha}{two-sided level.}
 }
 \value{
 a data.frame: one row per parent with the raw and the level-named power.

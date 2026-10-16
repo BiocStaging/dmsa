@@ -554,9 +554,10 @@
 #' @param m Mediator system short name(s); with several M the call is
 #'   handed to \code{\link{dmsa_modmed}} (parallel mediators).
 #' @param sex the sex column (measurement rule v1.2: residualised from the
-#'   tones and a covariate of every equation); \code{global_mean} adds the
-#'   array's global mean M-value the same way. \code{sex = NULL} /
-#'   \code{global_mean = FALSE} reproduce the 0.99.13 rule.
+#'   tones and a covariate of every equation). \code{sex = NULL} with
+#'   \code{global_mean = FALSE} reproduces the 0.99.13 rule.
+#' @param global_mean add the array's global mean M-value the same way as
+#'   \code{sex}.
 #' @param tissue the tissue the cpgdirection map is resolved for.
 #' @param pairs \code{"cascade"} keeps only the selection cascade's CpG x
 #'   gene assignments from the cpgdirection map; \code{"all"} every pair.

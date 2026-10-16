@@ -97,9 +97,11 @@ only through the structural covariates); a subset (e.g. the cell
 fractions alone) brackets the under-/over-adjustment trade-off.}
 
 \item{sex}{the sex column (measurement rule v1.2: residualised from the
-tones and a covariate of every equation); \code{global_mean} adds the
-array's global mean M-value the same way. \code{sex = NULL} /
-\code{global_mean = FALSE} reproduce the 0.99.13 rule.}
+tones and a covariate of every equation). \code{sex = NULL} with
+\code{global_mean = FALSE} reproduces the 0.99.13 rule.}
+
+\item{global_mean}{add the array's global mean M-value the same way as
+\code{sex}.}
 
 \item{chip}{Optional column in \code{data} naming the array chip. When
 given, module tones are chip-quasi-demeaned (REML, R/ranef.R) BEFORE

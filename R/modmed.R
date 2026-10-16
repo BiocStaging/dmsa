@@ -256,18 +256,20 @@
 #'   Gate v3: an omitted curvilinear main effect of the size of the paths
 #'   produces a spurious interaction 55\% of the time; with the squares the
 #'   level is nominal. An interaction claim should survive this.
-#' @param sex the sex column (rule v1.2); \code{global_mean} adds the global
-#'   mean M-value (over the \code{methylation} matrix, or over every cg-site
-#'   column of \code{data}).
+#' @param sex the sex column (rule v1.2).
+#' @param global_mean add the global mean M-value (over the
+#'   \code{methylation} matrix, or over every cg-site column of \code{data}).
 #' @param tissue the tissue the cpgdirection map is resolved for.
 #' @param module_score \code{"majority"} (default since 0.99.17: the module's
 #'   majority-direction probes, mean of the scaled M-values, signed by that
 #'   direction - the v12 tone of the 2026i registered runs) or
 #'   \code{"aligned"} (the direction-weighted expected score, the default of
 #'   0.99.12-16). The registered runs, and every number of the methods paper,
-#'   are \code{"majority"}; \code{anchor} an optional named vector of
-#'   the module placed first per system; \code{pairs} \code{"cascade"}
-#'   (only the selection cascade's CpG x gene assignments) or \code{"all"}.
+#'   are \code{"majority"}.
+#' @param anchor an optional named vector of the module placed first per
+#'   system.
+#' @param pairs \code{"cascade"} (only the selection cascade's CpG x gene
+#'   assignments) or \code{"all"}.
 #' @param theta_mm \code{"auto"} fits the connected measurement of every
 #'   pair of latent mediators (lavaan) and applies theta_MM by the .10 rule;
 #'   \code{"none"} skips it.
@@ -276,6 +278,7 @@
 #'   (every system as a .70 composite), \code{"quadratic"} (the safeguard),
 #'   \code{"global_mean_off"} (rule v1.1): each is re-run at \code{B_sens}
 #'   permutations and returned as one table (\code{$sensitivities}).
+#' @param B_sens permutations of each sensitivity re-run.
 #' @param boot_rung \code{"fixed"} holds every system's measurement rung at
 #'   its full-sample value inside the bootstrap and re-estimates loadings
 #'   only; \code{"ladder"} reruns the ladder per draw.

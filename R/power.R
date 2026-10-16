@@ -95,14 +95,19 @@ dmsa_n_slope <- function(r, power = 0.80, rel_x = 1, rel_y = 1, k = 0, alpha = 0
 #' @param a2,c1,c2 nuisance paths W -> M, X -> Y, W -> Y.
 #' @param rxw correlation of X and W.
 #' @param rel named reliabilities of \code{X, M, W, Y} (1 = observed).
-#' @param w_on where the moderator acts (\code{"a"}, \code{"b"}, \code{"both"});
-#'   \code{moderator = FALSE} drops W from the model (plain mediation:
+#' @param w_on where the moderator acts (\code{"a"}, \code{"b"}, \code{"both"}).
+#' @param moderator \code{FALSE} drops W from the model (plain mediation:
 #'   \code{M ~ X}, \code{Y ~ M + X}, read \code{IE}).
 #' @param quadratic run the estimator with the quadratic safeguard (its power price).
 #' @param k_cov number of nuisance covariates in both equations.
 #' @param families rows come in exchangeable pairs (family blocks; the
 #'   permutation exchanges blocks, as in the registered runs).
-#' @param reps replicates; \code{mode}, \code{B} the test engine; \code{alpha} the level; \code{seed}.
+#' @param reps replicates.
+#' @param mode,B the test engine: \code{"t"} reads the HC errors-in-variables t
+#'   against a normal reference; \code{"perm"} runs the Freedman-Lane
+#'   permutation test with \code{B} permutations.
+#' @param alpha two-sided level.
+#' @param seed random seed.
 #' @return a \code{dmsa_power} object: \code{$power} (a1, a3, b1, b3, IE, IMM),
 #'   \code{$estimates} (mean corrected estimates against the truth),
 #'   \code{$design}.
@@ -137,7 +142,11 @@ dmsa_power_modmed <- function(n, a1, a3 = 0, b1, b3 = 0, a2 = 0.2, c1 = 0.2, c2 
 #' Bisection on \code{n} over \code{\link{dmsa_power_modmed}} in the fast mode.
 #' @inheritParams dmsa_power_modmed
 #' @param target which estimand: \code{"IMM"}, \code{"IE"}, \code{"a1"}, \code{"a3"}, \code{"b1"}, \code{"b3"}.
-#' @param power target power; \code{n_range} the search bracket; \code{reps} per evaluation.
+#' @param power target power.
+#' @param n_range the search bracket for \code{n}.
+#' @param reps replicates per evaluation.
+#' @param ... further arguments to \code{\link{dmsa_power_modmed}} (paths,
+#'   reliabilities, \code{w_on}, ...).
 #' @return the smallest n on a grid of 10 reaching \code{power} (with the power found).
 #' @export
 dmsa_n_modmed <- function(target = "IMM", power = 0.80, n_range = c(60, 2000), reps = 300L, ...) {
@@ -156,8 +165,13 @@ dmsa_n_modmed <- function(target = "IMM", power = 0.80, n_range = c(60, 2000), r
 #' level). With \code{units > 1} the level-local maxT family is bounded by
 #' Bonferroni (\code{alpha / units}, the conservative side of maxT), giving
 #' the power to NAME the unit within its level.
-#' @param n triads; \code{units} the family size at the level; \code{k} covariates.
-#' @param beta_mother,beta_father latent slopes; \code{r_mf} parents' correlation; \code{rel} reliability of the scores; \code{alpha}.
+#' @param n triads.
+#' @param beta_mother,beta_father latent slopes.
+#' @param r_mf parents' correlation.
+#' @param rel reliability of the scores.
+#' @param units the family size at the level.
+#' @param k number of covariates.
+#' @param alpha two-sided level.
 #' @return a data.frame: one row per parent with the raw and the level-named power.
 #' @export
 dmsa_power_transmit <- function(n, beta_mother, beta_father = 0, r_mf = 0.2, rel = 0.7, units = 1L, k = 4L, alpha = 0.05) {
@@ -184,7 +198,11 @@ dmsa_power_transmit <- function(n, beta_mother, beta_father = 0, r_mf = 0.2, rel
 #' MATH 1.6 offsets with the conditioning guard, the HC contrast statistic
 #' against a normal reference; also the guard rate and the median ratio of
 #' the corrected curvature to the truth.
-#' @param n_couples couples; \code{r_couple} latent within-couple correlation; \code{rel} reliability; \code{units} family size; \code{alpha}.
+#' @param n_couples couples.
+#' @param r_couple latent within-couple correlation.
+#' @param rel reliability of the scores.
+#' @param units family size at the level.
+#' @param alpha two-sided level.
 #' @return \code{dmsa_power_concordance} / \code{dmsa_power_exposure}: named numeric (power, and the n for .80);
 #'   \code{dmsa_power_surface}: named numeric (power, guard_rate, median_a4_ratio).
 #' @export
@@ -194,7 +212,8 @@ dmsa_power_concordance <- function(n_couples, r_couple, rel = 0.7, units = 1L, a
     n_for_80 = dmsa_n_slope(r_couple, 0.80, rel, rel, 0, alpha))
 }
 #' @rdname dmsa_power_concordance
-#' @param r0,r1 within-couple correlations without / with the exposure; \code{p1} proportion exposed.
+#' @param r0,r1 within-couple correlations without / with the exposure.
+#' @param p1 proportion exposed.
 #' @export
 dmsa_power_exposure <- function(n_couples, r0, r1, p1 = 0.5, rel = 0.7, alpha = 0.05) {
   pw <- function(nc) { z0 <- atanh(r0 * rel); z1 <- atanh(r1 * rel); n0 <- nc * (1 - p1); n1 <- nc * p1
@@ -204,8 +223,14 @@ dmsa_power_exposure <- function(n_couples, r0, r1, p1 = 0.5, rel = 0.7, alpha = 
   c(power = pw(n_couples), n_for_80 = nn)
 }
 #' @rdname dmsa_power_concordance
-#' @param n actor rows of the surface; \code{a4} latent curvature along the incongruence line; \code{b1,b2} actor and partner linear effects; \code{reps}, \code{seed};
-#'   \code{mode = "perm"} (default) runs the Freedman-Lane contrast test with \code{B} permutations - the HC contrast statistic against a normal reference (\code{"t"}) is conservative for the corrected surface.
+#' @param n actor rows of the surface.
+#' @param a4 latent curvature along the incongruence line.
+#' @param b1,b2 actor and partner linear effects.
+#' @param reps replicates.
+#' @param seed random seed.
+#' @param mode,B \code{"perm"} (default) runs the Freedman-Lane contrast test
+#'   with \code{B} permutations; the HC contrast statistic against a normal
+#'   reference (\code{"t"}) is conservative for the corrected surface.
 #' @export
 dmsa_power_surface <- function(n, a4, r_couple = 0.1, rel = 0.7, b1 = 0.2, b2 = 0.1, reps = 500L, alpha = 0.05, seed = 2L,
                                mode = c("perm", "t"), B = 199L) {

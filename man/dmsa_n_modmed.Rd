@@ -15,9 +15,14 @@ dmsa_n_modmed(
 \arguments{
 \item{target}{which estimand: \code{"IMM"}, \code{"IE"}, \code{"a1"}, \code{"a3"}, \code{"b1"}, \code{"b3"}.}
 
-\item{power}{target power; \code{n_range} the search bracket; \code{reps} per evaluation.}
+\item{power}{target power.}
 
-\item{reps}{replicates; \code{mode}, \code{B} the test engine; \code{alpha} the level; \code{seed}.}
+\item{n_range}{the search bracket for \code{n}.}
+
+\item{reps}{replicates per evaluation.}
+
+\item{...}{further arguments to \code{\link{dmsa_power_modmed}} (paths,
+reliabilities, \code{w_on}, ...).}
 }
 \value{
 the smallest n on a grid of 10 reaching \code{power} (with the power found).

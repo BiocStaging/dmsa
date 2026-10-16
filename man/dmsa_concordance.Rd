@@ -31,12 +31,12 @@ dmsa_concordance(
 \arguments{
 \item{data}{a \code{\link{dmsa_contract}} (or data.frame) of the frame.}
 
-\item{couple}{the couple id column; \code{partner_by} the column that
-distinguishes the two partners, \code{roles = c(a = ..., b = ...)} its
-values (named as you like: \code{c(woman = 2, man = 1)}).}
+\item{couple}{the couple id column.}
 
-\item{roles}{named vector \code{c(mother = ..., father = ...)} of
-\code{parent_role} values.}
+\item{partner_by}{the column that distinguishes the two partners.}
+
+\item{roles}{named vector \code{c(a = ..., b = ...)} of the
+\code{partner_by} values (named as you like: \code{c(woman = 2, man = 1)}).}
 
 \item{systems}{system short names (as in \code{dmsa_sets("alpha")}).}
 
@@ -47,8 +47,9 @@ values (named as you like: \code{c(woman = 2, man = 1)}).}
 
 \item{outcome}{an outcome column (of the actor rows).}
 
-\item{exposure}{a 0/1 exposure column; \code{exposed} names the role it
-belongs to.}
+\item{exposure}{a 0/1 exposure column.}
+
+\item{exposed}{the role (a name of \code{roles}) the exposure belongs to.}
 
 \item{map}{\code{"auto"} (cpgdirection pairs when installed, the bundled
 snapshot otherwise), \code{"alpha"}, \code{"cpgdirection"} or a map.}
@@ -56,10 +57,9 @@ snapshot otherwise), \code{"alpha"}, \code{"cpgdirection"} or a map.}
 \item{composite_rel}{the fixed reliability of gene and module composites
 and of a system whose ladder ends at the single rung (PI ruling .70).}
 
-\item{B}{permutations of the shared stream.}
+\item{B}{permutations of the surface and exposure tests.}
 
-\item{NP}{re-pairings of step 0; \code{B} permutations of the surface and
-exposure tests.}
+\item{NP}{re-pairings of step 0.}
 
 \item{seed}{seed of the stream.}
 

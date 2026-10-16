@@ -301,16 +301,17 @@ print.dmsa_transmit <- function(x, ...) {
 #' permuted.
 #'
 #' @param data a \code{\link{dmsa_contract}} (or data.frame) of the frame.
-#' @param couple the couple id column; \code{partner_by} the column that
-#'   distinguishes the two partners, \code{roles = c(a = ..., b = ...)} its
-#'   values (named as you like: \code{c(woman = 2, man = 1)}).
+#' @param couple the couple id column.
+#' @param partner_by the column that distinguishes the two partners.
+#' @param roles named vector \code{c(a = ..., b = ...)} of the
+#'   \code{partner_by} values (named as you like: \code{c(woman = 2, man = 1)}).
 #' @param batch the processing-batch column shared within a couple, or
 #'   \code{FALSE}.
 #' @param outcome an outcome column (of the actor rows).
-#' @param exposure a 0/1 exposure column; \code{exposed} names the role it
-#'   belongs to.
-#' @param NP re-pairings of step 0; \code{B} permutations of the surface and
-#'   exposure tests.
+#' @param exposure a 0/1 exposure column.
+#' @param exposed the role (a name of \code{roles}) the exposure belongs to.
+#' @param NP re-pairings of step 0.
+#' @param B permutations of the surface and exposure tests.
 #' @inheritParams dmsa_transmit
 #' @return a \code{dmsa_concordance} object: \code{$step0}, \code{$surface},
 #'   \code{$exposure} (each one row per system x level x unit),

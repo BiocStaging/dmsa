@@ -1,3 +1,30 @@
+# dmsa 0.99.20
+
+## Documentation and test hygiene before the Bioconductor push (no engine change)
+
+* **Every argument in a usage section is now documented.** `R CMD check`
+  warned about arguments described only inside another argument's entry:
+  `partner_by`, `exposed` (`dmsa_concordance()`); `global_mean`
+  (`dmsa_mediate()`); `global_mean`, `anchor`, `B_sens` (`dmsa_modmed()`);
+  `n_range`, `...` (`dmsa_n_modmed()`); `r_couple`, `rel`, `units`, `alpha`,
+  `p1`, `a4`, `b1`, `b2`, `reps`, `seed`, `mode`, `B`
+  (`dmsa_power_concordance()` / `_exposure()` / `_surface()`); `mode`, `B`,
+  `alpha`, `seed`, `moderator` (`dmsa_power_modmed()`); `r_mf`, `rel`,
+  `units`, `k`, `alpha` (`dmsa_power_transmit()`). Each now has its own
+  entry with the same wording. `dmsa_report.Rd` no longer lists `progress`
+  and `beep` twice. Roxygen comments and `man/` only.
+* **figure-displays tests read PDFs as bytes.** The helper that reads figure
+  text back from the uncompressed PDF passed the binary header line to
+  `grep()`, which warns in a UTF-8 locale (macOS). It now re-encodes the
+  lines from latin1 to UTF-8 first; the assertions are unchanged.
+* **Live cpgdirection tests and the thin cpgdirection build.** With the
+  Bioconductor build of cpgdirection, the large data layers come from
+  cpgdirectionData through ExperimentHub. Where that resource is not
+  reachable, cpgdirection returns no CpG-gene pair and the LIVE tests fail
+  ("no usable module tone"). Point cpgdirectionData at a local copy
+  (`CPGDIRECTIONDATA_LOCAL` or `options(cpgdirectionData.local = )`) on such
+  a machine. No dmsa code changed for this.
+
 # dmsa 0.99.19
 
 ## Naming rule: dependence-calibrated FDR on the unit p (PI ruling 2026-10-15)

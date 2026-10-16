@@ -122,9 +122,10 @@ pre-adjustment). \code{NULL} (default) uses \code{covariates};
 only through the structural covariates); a subset (e.g. the cell
 fractions alone) brackets the under-/over-adjustment trade-off.}
 
-\item{sex}{the sex column (rule v1.2); \code{global_mean} adds the global
-mean M-value (over the \code{methylation} matrix, or over every cg-site
-column of \code{data}).}
+\item{sex}{the sex column (rule v1.2).}
+
+\item{global_mean}{add the global mean M-value (over the
+\code{methylation} matrix, or over every cg-site column of \code{data}).}
 
 \item{chip}{Optional column in \code{data} naming the array chip. When
 given, module tones are chip-quasi-demeaned (REML, R/ranef.R) BEFORE
@@ -155,12 +156,13 @@ majority-direction probes, mean of the scaled M-values, signed by that
 direction - the v12 tone of the 2026i registered runs) or
 \code{"aligned"} (the direction-weighted expected score, the default of
 0.99.12-16). The registered runs, and every number of the methods paper,
-are \code{"majority"}; \code{anchor} an optional named vector of
-the module placed first per system; \code{pairs} \code{"cascade"}
-(only the selection cascade's CpG x gene assignments) or \code{"all"}.}
+are \code{"majority"}.}
 
-\item{pairs}{\code{"cascade"} keeps only the selection cascade's CpG x
-gene assignments from the cpgdirection map; \code{"all"} every pair.}
+\item{anchor}{an optional named vector of the module placed first per
+system.}
+
+\item{pairs}{\code{"cascade"} (only the selection cascade's CpG x gene
+assignments) or \code{"all"}.}
 
 \item{B}{Permutations per path.}
 
@@ -209,6 +211,8 @@ pair of latent mediators (lavaan) and applies theta_MM by the .10 rule;
 (every system as a .70 composite), \code{"quadratic"} (the safeguard),
 \code{"global_mean_off"} (rule v1.1): each is re-run at \code{B_sens}
 permutations and returned as one table (\code{$sensitivities}).}
+
+\item{B_sens}{permutations of each sensitivity re-run.}
 }
 \value{
 An object of class \code{dmsa_modmed}: the roles and their

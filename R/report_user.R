@@ -1251,7 +1251,6 @@
 #' r <- dmsa_report(fr)
 #' r$results[, c("level", "unit", "n_probes", "p_omnibus")]
 #' @rdname dmsa_report
-#' @param progress,beep console progress and completion sound (frame only).
 #' @export
 dmsa_report.dmsa_frame <- function(frame, progress = NULL, beep = NULL,
                                    overwrite = FALSE, ...) {

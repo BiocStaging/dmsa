@@ -31,12 +31,33 @@ dmsa_power_surface(
 )
 }
 \arguments{
-\item{n_couples}{couples; \code{r_couple} latent within-couple correlation; \code{rel} reliability; \code{units} family size; \code{alpha}.}
+\item{n_couples}{couples.}
 
-\item{r0, r1}{within-couple correlations without / with the exposure; \code{p1} proportion exposed.}
+\item{r_couple}{latent within-couple correlation.}
 
-\item{n}{actor rows of the surface; \code{a4} latent curvature along the incongruence line; \code{b1,b2} actor and partner linear effects; \code{reps}, \code{seed};
-\code{mode = "perm"} (default) runs the Freedman-Lane contrast test with \code{B} permutations - the HC contrast statistic against a normal reference (\code{"t"}) is conservative for the corrected surface.}
+\item{rel}{reliability of the scores.}
+
+\item{units}{family size at the level.}
+
+\item{alpha}{two-sided level.}
+
+\item{r0, r1}{within-couple correlations without / with the exposure.}
+
+\item{p1}{proportion exposed.}
+
+\item{n}{actor rows of the surface.}
+
+\item{a4}{latent curvature along the incongruence line.}
+
+\item{b1, b2}{actor and partner linear effects.}
+
+\item{reps}{replicates.}
+
+\item{seed}{random seed.}
+
+\item{mode, B}{\code{"perm"} (default) runs the Freedman-Lane contrast test
+with \code{B} permutations; the HC contrast statistic against a normal
+reference (\code{"t"}) is conservative for the corrected surface.}
 }
 \value{
 \code{dmsa_power_concordance} / \code{dmsa_power_exposure}: named numeric (power, and the n for .80);

@@ -15,8 +15,13 @@
 ## read back: R's pdf device writes each string as a (..) Tj or a kerned
 ## [(..) n (..)] TJ operator. No pixels, no OCR.
 
+## PDF is binary: its header comment carries high bytes that are not valid
+## UTF-8, and grep() on them warns in a UTF-8 locale. Read the bytes as
+## latin1 (every byte is a valid latin1 character) and work in UTF-8.
+.fd_pdf_lines <- function(file)
+  iconv(readLines(file, warn = FALSE), from = "latin1", to = "UTF-8")
 .fd_pdf_text <- function(file) {
-  l <- readLines(file, warn = FALSE)
+  l <- .fd_pdf_lines(file)
   l <- l[grepl("T[jJ]\\s*$", l)]
   vapply(l, function(x) {
     m <- regmatches(x, gregexpr("\\((?:[^()\\\\]|\\\\.)*\\)", x, perl = TRUE))[[1]]
@@ -24,7 +29,7 @@
   }, character(1), USE.NAMES = FALSE)
 }
 .fd_pdf_width_in <- function(file) {
-  l <- grep("MediaBox", readLines(file, warn = FALSE), value = TRUE)[1]
+  l <- grep("MediaBox", .fd_pdf_lines(file), value = TRUE)[1]
   as.numeric(strsplit(sub(".*MediaBox \\[([^]]*)\\].*", "\\1", l), " +")[[1]])[3] / 72
 }
 .fd_pairs <- function() data.frame(

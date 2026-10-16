@@ -38,9 +38,7 @@ dmsa_power_modmed(
 
 \item{rel}{named reliabilities of \code{X, M, W, Y} (1 = observed).}
 
-\item{w_on}{where the moderator acts (\code{"a"}, \code{"b"}, \code{"both"});
-\code{moderator = FALSE} drops W from the model (plain mediation:
-\code{M ~ X}, \code{Y ~ M + X}, read \code{IE}).}
+\item{w_on}{where the moderator acts (\code{"a"}, \code{"b"}, \code{"both"}).}
 
 \item{quadratic}{run the estimator with the quadratic safeguard (its power price).}
 
@@ -49,7 +47,18 @@ dmsa_power_modmed(
 \item{families}{rows come in exchangeable pairs (family blocks; the
 permutation exchanges blocks, as in the registered runs).}
 
-\item{reps}{replicates; \code{mode}, \code{B} the test engine; \code{alpha} the level; \code{seed}.}
+\item{reps}{replicates.}
+
+\item{mode, B}{the test engine: \code{"t"} reads the HC errors-in-variables t
+against a normal reference; \code{"perm"} runs the Freedman-Lane
+permutation test with \code{B} permutations.}
+
+\item{alpha}{two-sided level.}
+
+\item{seed}{random seed.}
+
+\item{moderator}{\code{FALSE} drops W from the model (plain mediation:
+\code{M ~ X}, \code{Y ~ M + X}, read \code{IE}).}
 }
 \value{
 a \code{dmsa_power} object: \code{$power} (a1, a3, b1, b3, IE, IMM),
