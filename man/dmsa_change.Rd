@@ -2,7 +2,7 @@
 % Please edit documentation in R/change.R
 \name{dmsa_change}
 \alias{dmsa_change}
-\title{Two-wave change-score DMSA: time x methylation x factor}
+\title{Two-wave change-score DMSA on a common longitudinal scale}
 \usage{
 dmsa_change(
   M_before,
@@ -14,12 +14,15 @@ dmsa_change(
   units,
   alignment,
   covariates = NULL,
-  baseline = TRUE,
+  baseline = FALSE,
   role = c("predictor", "outcome"),
   block = NULL,
+  paired = FALSE,
+  pair_focal = NULL,
+  winsor = 3,
   B = 1999,
   correction = c("maxT", "minP"),
-  weighting = c("combined", "reliability", "flat"),
+  weighting = NULL,
   w_floor = 1.5,
   seed = 1
 )
@@ -32,53 +35,67 @@ dmsa_change(
 
 \item{outcome}{outcome column (role = "predictor").}
 
-\item{exposure}{the moderating factor E; with two waves this is the `mod`
-of the time x S x E three-way (Delta carries the time axis).}
+\item{exposure}{exposure/moderator column. With \code{paired = TRUE}, this
+is the two-level within-pair role variable.}
 
-\item{mod2}{optional second moderator: tests Delta-S x E x mod2 (moderators
-mean-centered, all lower-order terms in the model, highest-order tested).}
+\item{mod2}{optional second moderator. Not currently available in paired mode.}
 
 \item{units}{unit label per probe column (genes, modules, or one system).}
 
 \item{alignment}{alignment as in \code{\link{dmsa_triangulate}}.}
 
-\item{covariates}{character vector of covariate columns. Supply the
-CHANGE-SCALE cell composition here; a message reminds you if empty.}
+\item{covariates}{optional change-scale nuisance covariates. Adjusting for
+Delta-cell composition estimates composition-adjusted, not total bulk,
+change and should be a scientific choice rather than an automatic default.}
 
-\item{baseline}{include the unit's before-wave score as a covariate.}
+\item{baseline}{include the before-wave aligned score. Default FALSE because
+this changes the estimand to baseline-adjusted/residualised change.}
 
-\item{role}{"predictor": outcome ~ dS * E (* mod2) + S0 + covariates.
-"outcome": dS ~ E (* mod2) + covariates (exposure predicts the change).}
+\item{role}{"predictor": outcome ~ dS * E (* mod2) + covariates;
+"outcome": dS ~ E (* mod2) + covariates.}
 
-\item{block}{exchangeable blocks (e.g. couple id).}
+\item{block}{exchangeability block. With \code{paired = TRUE}, identifies
+the pair and must contain exactly two rows per block.}
 
-\item{B, correction, seed}{as elsewhere; correction applies across the units}
+\item{paired}{logical. Use pair-level focal-minus-reference inference instead
+of whole-block Freedman-Lane permutation.}
 
-\item{weighting}{Character. Probe weighting engine within a unit: \code{"combined"} (default) fuses the flat and reliability statistics on one shared permutation stream, \code{"flat"} weights every usable aligned probe equally, \code{"reliability"} weights each probe by its item-rest correlation with the rest of its unit. Weights are computed from methylation alone, so the permutation null is unaffected.}
+\item{pair_focal}{explicit focal exposure level in paired mode (e.g. 1 for
+mother when exposure is a 0/1 mother indicator).}
 
-\item{w_floor}{Numeric. Lower bound applied to reliability weights before normalisation, so a single poorly behaved probe cannot be driven to zero influence. Ignored when \code{weighting = "flat"}.
-of the family (maxT default).}
+\item{winsor}{MADs for winsorisation on the STACKED two-wave matrix; NULL
+disables. The same cut points are therefore applied to both waves.}
+
+\item{B, correction, seed}{permutation/bootstrap controls; correction applies
+across the units of the tested family.}
+
+\item{weighting}{Probe weighting engine. NULL chooses "combined" when
+methylation change is a predictor and "flat" when methylation change is
+the outcome. Outcome-side reliability weighting is currently refused until
+dedicated null-calibration simulations support it.}
+
+\item{w_floor}{lower bound for reliability weighting; ignored for flat.}
 }
 \value{
 data.frame of class "dmsa_change": unit, n, n_probes, b, t, p,
-  p_adj; attributes term, role, formula.
+p_adj; attributes describe the estimand and inference mode.
 }
 \description{
-Tests Delta-S x exposure (x mod2) per unit through the composite machinery
-(\code{\link{dmsa_model}}, Freedman-Lane, family blocks), with maxT across
-the units of the level-local family on one shared permutation stream.
+Builds aligned scores for both waves using one stacked-wave transform, then
+tests either outcome ~ Delta-S * exposure or Delta-S ~ exposure. For fixed
+two-person roles such as mother/father, use \code{paired = TRUE}; the method
+then tests focal-minus-reference change across independent pairs with an HC3
+studentised Rademacher wild bootstrap and maxT across units.
 }
 \examples{
 set.seed(5)
 n <- 80; g <- rep(c("g1", "g2"), each = 4); P <- length(g)
 d <- rep(c(1, -1), length.out = P); E <- rnorm(n); y <- rnorm(n)
-M0 <- matrix(rnorm(n * P), n, P)
-M1 <- 0.6 * M0 + matrix(rnorm(n * P), n, P)
-# plant a change in g1 that tracks y x E through the alignment
+M0 <- matrix(rnorm(n * P), n); M1 <- 0.6 * M0 + matrix(rnorm(n * P), n) * .8
 M1[, g == "g1"] <- M1[, g == "g1"] + outer(0.5 * y * E, d[g == "g1"])
 al <- dmsa_align(data.frame(cpg = paste0("cg", 1:P), d = d,
                             p_plus = ifelse(d > 0, 0.9, 0.1)), genes = g)
-dat <- data.frame(y = y, E = E, dEpi = rnorm(n))
+dat <- data.frame(y = y, E = E, cv = rnorm(n))
 dmsa_change(M0, M1, dat, outcome = "y", exposure = "E", units = g,
-            alignment = al, covariates = "dEpi", B = 99, seed = 1)
+            alignment = al, covariates = "cv", B = 99, seed = 1)
 }

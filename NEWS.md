@@ -1,3 +1,15 @@
+# dmsa 0.99.18
+
+## `dmsa_change()` longitudinal inference hardening
+
+* **One scale across waves.** Before/after probes are now winsorised and standardised on the stacked two-wave matrix, and the aligned score is scaled once across both waves before change is formed. A common biological shift can no longer disappear because each wave was re-standardised separately.
+* **Paired fixed-role mode.** `paired = TRUE, pair_focal = ...` collapses two-person blocks to focal-minus-reference aligned change and uses an HC3-studentised Rademacher wild bootstrap across independent pairs. The same bootstrap stream is shared across units for maxT. This is the supported route for mother/father and analogous fixed within-pair roles. Ordinary whole-block residual permutation now refuses such a design rather than returning a formally computed but uncalibrated role test.
+* **Estimands are explicit.** `baseline = FALSE` is now the default; `baseline = TRUE` is labelled baseline-adjusted/residualised change rather than a generic regression-to-the-mean guard. Change in estimated cell composition/technical factors is optional and is documented as changing the target to composition/technical-adjusted rather than total bulk-tissue change.
+* **Outcome-side weighting guard.** When methylation change is the outcome, confirmatory inference currently requires `weighting = "flat"`; reliability/combined weights remain available when methylation is the predictor.
+* **Pair-preserving without pseudo-replication.** One CpG may enter several genes, but duplicate CpG x unit rows are now refused.
+* **Permutation wording corrected.** Freedman-Lane is described as permutation-calibrated and finite-sample exact only under the relevant exchangeability conditions, rather than unconditionally exact.
+* New regression tests cover common-wave scaling, the fixed-role permutation trap, planted paired-role recovery, the outcome-weighting guard and duplicate CpG x unit rejection. A slower validation script under `inst/validation/` is provided for empirical type-I/FWER checks.
+
 # dmsa 0.99.17
 
 ## `dmsa_report()` now delivers the four structural methods

@@ -19,9 +19,11 @@
 #
 # THE CALIBRATION GUARANTEE. The weights are a function of the methylation
 # matrix ALONE - never the outcome - so under Freedman-Lane permutation of the
-# outcome residuals the weights are frozen and the permutation null is exact.
-# Weighting therefore changes power, never type-I error. (Verified in
-# tests/testthat/test-weight.R and in the weighted-DMSA simulation.)
+# response residuals the weights are frozen. This is permutation-invariant when
+# the resampled response is external to methylation, and simulations cover that
+# use case. When methylation CHANGE itself is the outcome, the weights are
+# outcome-adaptive; dmsa_change() therefore refuses non-flat weighting on
+# that arm until dedicated null calibration is available.
 #
 # THREE GUARDS keep the weights honest:
 #   (1) a unit with < 3 usable direction-called probes falls back to flat -

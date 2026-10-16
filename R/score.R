@@ -134,8 +134,10 @@ dmsa_scores <- function(M, alignment, method = c("expected", "fixed"),
 #'
 #' The upper level of DMSA 2.0. Fits \code{formula} once, then permutes the
 #' reduced-model residuals within permutation blocks of equal size
-#' (Freedman-Lane) to obtain an exact p-value for one named coefficient -
-#' including an interaction. \code{\link{dmsa_moderate}} is the special case of
+#' (Freedman-Lane) to obtain a permutation-calibrated p-value for one named
+#' coefficient. It is finite-sample exact only when the reduced-model residuals
+#' are exchangeable under the tested null; otherwise it is an approximate
+#' residual-permutation test, including for an interaction. \code{\link{dmsa_moderate}} is the special case of
 #' this for \code{score * moderator} with a declared \code{dmsa_design()};
 #' use that when you want the design contract enforced and simple slopes
 #' reported, and this when the question is an arbitrary term.

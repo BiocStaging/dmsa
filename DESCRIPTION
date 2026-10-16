@@ -1,6 +1,6 @@
 Package: dmsa
 Title: Directional Methylation Set Analysis
-Version: 0.99.17
+Version: 0.99.18
 Authors@R: c(person("Tsachi", "Ein-Dor", role = c("aut", "cre", "fnd"),
     email = "teindor@runi.ac.il",
     comment = c(ORCID = "0000-0002-3078-7591")))
