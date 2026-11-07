@@ -71,10 +71,19 @@ alpha_polarity <- function() {
 #'   which case the direction calls and the gene mapping are taken from the
 #'   map bundled with dmsa (see \code{\link{dmsa_directions}}), or a table of
 #'   calls you supply yourself. A supplied table may be the output of
-#'   \code{cpgdirection::cpg_expression_direction()} (needs \code{cpg_id} or
+#'   \code{cpgdirection::cpg_expression_direction()} or
+#'   \code{cpgdirection::cpg_gene_pairs()} (needs \code{cpg_id} or
 #'   \code{input}, \code{best_direction}, and if available
-#'   \code{best_confidence}), or any data.frame with \code{cpg},
-#'   \code{d} (+1/-1) and optionally \code{p_plus} = P(d = +1).
+#'   \code{best_accuracy}), or any data.frame with \code{cpg},
+#'   \code{d} (+1/-1) and optionally \code{p_plus} = P(d = +1). When the
+#'   table carries \code{best_accuracy} (cpgdirection's November 2026 builds: the
+#'   validated probability that \code{best_direction} is right, in the
+#'   call's tissue), P(d = +1) is \code{best_accuracy} for a +1 call and
+#'   \code{1 - best_accuracy} for a -1 call, ahead of every other column; a
+#'   direction with no \code{best_accuracy} value is then unusable. Without
+#'   that column, P(d = +1) comes from \code{p_plus}, then
+#'   \code{probability_plus1}, then \code{best_confidence} /
+#'   \code{confidence}, then the SMR tier.
 #' @param genes The set-membership gene of each probe - which gene this probe
 #'   is being read against. Required, and the same length as the probes, when
 #'   \code{direction} is a table. Optional when \code{direction} is a
@@ -253,20 +262,34 @@ dmsa_align <- function(direction, genes = NULL,
     conf <- pmin(pmax(as.numeric(conf), 0), 1)
     ifelse(is.na(d), NA_real_, ifelse(d > 0, 0.5 + conf / 2, 0.5 - conf / 2))
   }
-  if ("p_plus" %in% names(dd)) {
+  ## E17 (PI ruling, 2026-11-07). cpgdirection (November 2026) gives every direction
+  ## its validated accuracy in the call's tissue - best_accuracy, the
+  ## probability that best_direction is right (the lower 95% bound by
+  ## default; the point estimate under options(cpgdirection.accuracy =
+  ## "median")). The confidence columns below are not accuracies: measured
+  ## calls read 1 whatever their validated accuracy, SMR rows carry none,
+  ## tumour-consensus rows carry none, distance reads a curve distance from
+  ## 0.5. So when the table carries best_accuracy it decides P(d = +1) for
+  ## every row, ahead of every other column, and the ladder below serves only
+  ## tables without it (older cpgdirection, user maps).
+  use_acc <- "best_accuracy" %in% names(dd)
+  if (use_acc) {
+    a <- pmin(pmax(suppressWarnings(as.numeric(dd$best_accuracy)), 0), 1)
+    out$p_plus <- ifelse(is.na(out$d), NA_real_, ifelse(out$d > 0, a, 1 - a))
+  } else if ("p_plus" %in% names(dd)) {
     out$p_plus <- suppressWarnings(as.numeric(dd$p_plus))
   } else {
     out$p_plus <- NA_real_
   }
   ## the single-tissue schema
-  if (anyNA(out$p_plus) && "probability_plus1" %in% names(dd)) {
+  if (!use_acc && anyNA(out$p_plus) && "probability_plus1" %in% names(dd)) {
     k <- is.na(out$p_plus)
     out$p_plus[k] <- suppressWarnings(as.numeric(dd$probability_plus1))[k]
   }
   ## confidence in the CALLED direction (single tissue, or the winning layer
   ## of a tissue = "all" query)
   for (cn in c("best_confidence", "confidence")) {
-    if (anyNA(out$p_plus) && cn %in% names(dd)) {
+    if (!use_acc && anyNA(out$p_plus) && cn %in% names(dd)) {
       k <- is.na(out$p_plus)
       out$p_plus[k] <- .conf_to_pplus(dd[[cn]], out$d)[k]
     }
@@ -276,7 +299,7 @@ dmsa_align <- function(direction, genes = NULL,
   ## published per tier, with validation counts, and that is what to use -
   ## NOT the universal/distance probability, which would substitute a
   ## 0.60-0.65 prior for a 0.95-0.97 validated causal call.
-  if (anyNA(out$p_plus) && "smr_tier" %in% names(dd)) {
+  if (!use_acc && anyNA(out$p_plus) && "smr_tier" %in% names(dd)) {
     acc <- c(S1 = 0.96, S2 = 0.85, S3 = 0.705)   # midpoints of the published ranges
     a <- acc[as.character(dd$smr_tier)]
     k <- is.na(out$p_plus) & !is.na(a)
@@ -288,8 +311,8 @@ dmsa_align <- function(direction, genes = NULL,
   ## confidence columns but leaves this row empty is a gap, and filling it
   ## with certainty would hand maximum weight to the least-supported rows -
   ## which is exactly backwards. Those are marked unusable instead.
-  conf_cols <- c("p_plus", "probability_plus1", "best_confidence", "confidence",
-                 "smr_tier")
+  conf_cols <- c("best_accuracy", "p_plus", "probability_plus1", "best_confidence",
+                 "confidence", "smr_tier")
   has_conf_col <- any(conf_cols %in% names(dd))
   if (anyNA(out$p_plus)) {
     k <- is.na(out$p_plus) & !is.na(out$d)

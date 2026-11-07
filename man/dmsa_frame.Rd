@@ -77,7 +77,13 @@ whose colnames are probe/column ids.}
 
 \item{map}{"alpha" for the bundled Project Alpha map, or a data.frame.
 Used by the BUNDLED direction source only; passing a table forces
-\code{direction_source = "bundled"}.}
+\code{direction_source = "bundled"}. A table needs \code{probe},
+\code{column}, \code{gene}, \code{system_id}, \code{system},
+\code{best_direction}, and either \code{p_plus} or
+\code{best_accuracy}; when it carries \code{best_accuracy}
+(cpgdirection's November 2026 builds), P(d = +1) is taken from it ahead of
+\code{p_plus}, and a direction without a \code{best_accuracy} value is
+unusable.}
 
 \item{reference}{The biological reference (system > module > gene) that
 defines membership on the pair path: \code{"alpha"} (default, the 2026c

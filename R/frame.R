@@ -289,6 +289,15 @@
 
 .frame_maps <- function(map = "alpha") {
   mp <- .frame_read_map(map)
+  ## E17 (2026-11-07): a map carrying cpgdirection's best_accuracy takes
+  ## P(d = +1) from it, ahead of any p_plus column - the same rule as
+  ## dmsa_align(). The bundled maps carry p_plus only and are unchanged.
+  acc_map <- "best_accuracy" %in% names(mp)
+  if (acc_map && "best_direction" %in% names(mp)) {
+    a <- pmin(pmax(suppressWarnings(as.numeric(mp$best_accuracy)), 0), 1)
+    d <- suppressWarnings(as.numeric(mp$best_direction))
+    mp$p_plus <- ifelse(is.na(d) | is.na(a), NA_real_, ifelse(d > 0, a, 1 - a))
+  }
   need <- c("probe", "column", "gene", "system_id", "system",
             "best_direction", "p_plus")
   miss <- setdiff(need, names(mp))
@@ -300,6 +309,9 @@
   ## happens to be one row per column, so for it this changes nothing, but a
   ## user map may legitimately carry pairs.
   usable <- is.finite(mp$best_direction)
+  ## with best_accuracy, a direction without a value is unusable (as in
+  ## dmsa_align()); without it, the bundled-map behaviour is unchanged
+  if (acc_map) usable <- usable & is.finite(mp$p_plus)
   hi <- usable
   if (!is.null(mp$best_tier) || !is.null(mp$smr_tier)) {
     ta <- if (!is.null(mp$best_tier)) mp$best_tier %in% "A" else FALSE
@@ -436,7 +448,13 @@
 #'   whose colnames are probe/column ids.
 #' @param map "alpha" for the bundled Project Alpha map, or a data.frame.
 #'   Used by the BUNDLED direction source only; passing a table forces
-#'   \code{direction_source = "bundled"}.
+#'   \code{direction_source = "bundled"}. A table needs \code{probe},
+#'   \code{column}, \code{gene}, \code{system_id}, \code{system},
+#'   \code{best_direction}, and either \code{p_plus} or
+#'   \code{best_accuracy}; when it carries \code{best_accuracy}
+#'   (cpgdirection's November 2026 builds), P(d = +1) is taken from it ahead of
+#'   \code{p_plus}, and a direction without a \code{best_accuracy} value is
+#'   unusable.
 #' @param reference The biological reference (system > module > gene) that
 #'   defines membership on the pair path: \code{"alpha"} (default, the 2026c
 #'   codebook - 30 systems, 187 modules, 1,282 genes) or a

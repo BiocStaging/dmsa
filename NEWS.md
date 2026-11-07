@@ -1,3 +1,43 @@
+# dmsa 0.99.21
+
+## E17: the weight of a direction is its validated accuracy (PI ruling 2026-11-07)
+
+* **`best_accuracy` decides P(d = +1) when the table carries it.**
+  cpgdirection's November 2026 builds give every direction the accuracy of
+  its source in the call's tissue, `best_accuracy` (the lower bound of the
+  95% interval by default; the point estimate under
+  `options(cpgdirection.accuracy = "median")`). When a direction table has
+  that column, `dmsa_align()` sets P(d = +1) to `best_accuracy` for a +1
+  call and `1 - best_accuracy` for a -1 call, ahead of `p_plus`,
+  `probability_plus1`, `best_confidence` and the SMR tier. dmsa takes the
+  number as cpgdirection delivers it. A row with a direction and no
+  `best_accuracy` value is unusable, with the existing warning; an
+  abstention stays an abstention.
+* **Why.** The old columns are not accuracies. Measured calls read
+  `best_confidence = 1` (weight 1.00) whatever their validated accuracy;
+  SMR rows borrowed a tier midpoint; tumour-consensus rows carried no value
+  and were dropped. On the 2,730 columns of the bundled map run through the
+  pair path (cpgdirection with `best_accuracy`, here without the TxDb
+  distance layer): 3,283 pairs, 1,035 used, every one weighted by the rule.
+  The old ladder would have used 792 of the 1,035; the other 243 are
+  tumour-consensus pairs, now weighted 0.65. Median weight |2p - 1|, old to
+  new: measured blood replicated 1.00 to 0.90, measured blood single 1.00
+  to 0.73, measured solid single 1.00 to 0.41, catalogue single nasal A
+  0.53 to 0.18, catalogue consensus A 0.61 to 0.53.
+* **Same rule everywhere.** `dmsa_align()`, the pair runtime behind
+  `dmsa_frame(direction_source = "cpgdirection")` (which passes
+  `best_accuracy` through and keeps it, with `best_rung`, on the map), the
+  pair ledger, and a user `map` given to `dmsa_frame()` that carries
+  `best_accuracy`.
+* **Nothing changes without the column.** The bundled maps carry `p_plus`
+  only, and cpgdirection 0.99.0 returns no `best_accuracy`, so with them
+  every weight, and every result, is as in 0.99.20. The old ladder stays for
+  such tables.
+* **Tests.** `test-best-accuracy.R` (25 expectations): the rule, its
+  priority over every other column, the unchanged ladder without it, a
+  missing value, abstentions, clamping, the pair runtime with and without the
+  column, and `.frame_maps()`.
+
 # dmsa 0.99.20
 
 ## Documentation and test hygiene before the Bioconductor push (no engine change)

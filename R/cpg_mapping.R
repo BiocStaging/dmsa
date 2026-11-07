@@ -288,7 +288,7 @@
            "measurement_id", "cpg_id", "target_gene", "system_id",
            "system", "module_id", "module", "mapping_sources", "mapping_primary",
            "mapping_strength", "best_direction", "best_evidence",
-           "best_confidence", "direction_tier", "probability_plus1",
+           "best_accuracy", "best_confidence", "direction_tier", "probability_plus1",
            "n_targets_selected", "is_coeffect_selected", "used",
            "reason_not_used")
   led <- led[, c(intersect(ord, names(led)),
@@ -315,10 +315,11 @@
 ## consumed (probe, column, gene, system_id, system, best_direction, p_plus)
 ## plus provenance the report may show.
 ##
-## p_plus is resolved by dmsa_align()'s OWN documented ladder (p_plus ->
-## probability_plus1 -> best_confidence -> smr-tier midpoints -> unusable),
-## by handing it the raw pair columns once - not by re-implementing the
-## ladder here.
+## p_plus is resolved by dmsa_align()'s OWN documented rule, by handing it
+## the raw pair columns once - not by re-implementing it here: best_accuracy
+## when cpg_gene_pairs() returns it (cpgdirection's November 2026 builds, E17), otherwise the
+## ladder p_plus -> probability_plus1 -> best_confidence -> smr-tier
+## midpoints -> unusable.
 .frame_pairs_runtime <- function(available_columns, reference,
                                  tissue = "blood",
                                  replicate_policy = "collapse_site",
@@ -356,7 +357,7 @@
   dir_tab <- data.frame(cpg_id = led$cpg_id,
                         best_direction = led$best_direction,
                         stringsAsFactors = FALSE)
-  for (cn in c("probability_plus1", "best_confidence", "smr_tier"))
+  for (cn in c("best_accuracy", "probability_plus1", "best_confidence", "smr_tier"))
     if (cn %in% names(led)) dir_tab[[cn]] <- led[[cn]]
   al0 <- suppressWarnings(withCallingHandlers(
     dmsa_align(dir_tab, genes = led$target_gene, level = "gene"),
@@ -388,6 +389,7 @@
                    p_plus = u$p_plus,
                    stringsAsFactors = FALSE)
   for (cn in c("module_id", "module", "best_evidence", "direction_tier",
+               "best_rung", "best_accuracy",
                "pair_id", "cpgd_pair_id", "is_coeffect_selected",
                "n_targets_selected"))
     if (cn %in% names(u)) mp[[cn]] <- u[[cn]]

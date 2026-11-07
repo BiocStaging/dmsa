@@ -19,10 +19,19 @@ dmsa_align(
 which case the direction calls and the gene mapping are taken from the
 map bundled with dmsa (see \code{\link{dmsa_directions}}), or a table of
 calls you supply yourself. A supplied table may be the output of
-\code{cpgdirection::cpg_expression_direction()} (needs \code{cpg_id} or
+\code{cpgdirection::cpg_expression_direction()} or
+\code{cpgdirection::cpg_gene_pairs()} (needs \code{cpg_id} or
 \code{input}, \code{best_direction}, and if available
-\code{best_confidence}), or any data.frame with \code{cpg},
-\code{d} (+1/-1) and optionally \code{p_plus} = P(d = +1).}
+\code{best_accuracy}), or any data.frame with \code{cpg},
+\code{d} (+1/-1) and optionally \code{p_plus} = P(d = +1). When the
+table carries \code{best_accuracy} (cpgdirection's November 2026 builds: the
+validated probability that \code{best_direction} is right, in the
+call's tissue), P(d = +1) is \code{best_accuracy} for a +1 call and
+\code{1 - best_accuracy} for a -1 call, ahead of every other column; a
+direction with no \code{best_accuracy} value is then unusable. Without
+that column, P(d = +1) comes from \code{p_plus}, then
+\code{probability_plus1}, then \code{best_confidence} /
+\code{confidence}, then the SMR tier.}
 
 \item{genes}{The set-membership gene of each probe - which gene this probe
 is being read against. Required, and the same length as the probes, when
