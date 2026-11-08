@@ -299,13 +299,16 @@ test_that("LIVE: a masked in-reference probe is counted in scope only when its s
                            error = function(e) NULL)),
           "cpgdirection not installed")
   set.seed(9); n <- 60
-  ## cg00143991 is fully masked (Zhou general mask) and maps to TNFRSF1A
-  ## (Immune, inflammation & HLA); cg26261055 -> CRHBP (HPA) is clean
+  ## cg00242824 is fully masked (Zhou general mask) and maps to TNFRSF1B
+  ## (Immune, inflammation & HLA) by the EPIC v2 manifest; cg26261055 ->
+  ## CRHBP (HPA) is clean. (cg00143991, used before, reached TNFRSF1A only
+  ## through a lookup row on another chromosome, gone in cpgdirectionData
+  ## 0.99.5.)
   d <- data.frame(y = rnorm(n), cov1 = rnorm(n), cID = rep(1:30, each = 2))
-  for (cl in c("cg26261055", "cg25140571", "cg00143991"))
+  for (cl in c("cg26261055", "cg25140571", "cg00242824"))
     d[[cl]] <- stats::plogis(rnorm(n))
   fB <- suppressMessages(dmsa_frame(
-    d, methylation = c("cg26261055", "cg25140571", "cg00143991"),
+    d, methylation = c("cg26261055", "cg25140571", "cg00242824"),
     direction_source = "cpgdirection", outcome = "y", covariates = "cov1",
     blocks = "cID", chip = FALSE, B = 19, plots = FALSE,
     tables = FALSE, summary = FALSE, progress = FALSE, beep = FALSE,

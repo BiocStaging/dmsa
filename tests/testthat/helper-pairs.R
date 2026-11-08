@@ -32,8 +32,11 @@ fake_pairs <- function(cpg, genes, d = NA_integer_, usable = NA,
     stringsAsFactors = FALSE)
 }
 
-## The real cg25140571 result, verbatim from cpgdirection: four discovered
-## targets, exactly one usable.
+## A cg25140571 result as cpgdirection returned it before the
+## cpgdirectionData 0.99.5 lookups: four discovered targets, exactly one
+## usable. TRIM66 was a gene on another chromosome and is no longer a target;
+## the fixture is kept because the adapter's handling does not depend on
+## which genes they are.
 fake_pairs_cg25140571 <- function()
   fake_pairs("cg25140571",
              c("CAV3", "HSA-MIR-548BA", "OXTR", "TRIM66"),

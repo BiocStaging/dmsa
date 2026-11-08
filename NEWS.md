@@ -1,3 +1,32 @@
+# dmsa 0.99.22
+
+## Test follows cpgdirection's rebuilt catalogue lookups (no engine change)
+
+* cpgdirectionData 0.99.5 rebuilds cpgdirection's three catalogue lookups:
+  the old ones paired CpGs with genes on another chromosome (a third of the
+  checkable blood and solid rows). cg25140571 (chr3) was paired with TRIM66
+  (chr11) in blood and solid tissue; with the rebuilt lookups TRIM66 is no
+  longer one of its targets.
+* The LIVE test "co-effects and pair-specific direction survive the adapter"
+  selected OXTR and TRIM66. It now selects OXTR and a second target of
+  cg25140571 whose answer differs from OXTR's (CAV3), and checks that the
+  adapter returns, for each pair, the usability and direction cpgdirection
+  itself returns for it. The `fake_pairs_cg25140571()` fixture is unchanged;
+  its comment says it is a pre-0.99.5 result.
+* The LIVE test "a masked in-reference probe is counted in scope only when
+  its system is analysed" used cg00143991, which reached TNFRSF1A (immune)
+  only through such a lookup row (cg00143991 is on chr1, TNFRSF1A on chr12).
+  With the rebuilt lookups it maps to no reference gene, so the test no
+  longer tested an in-reference probe. It now uses cg00242824, fully masked
+  and mapped to TNFRSF1B (immune) by the EPIC v2 manifest.
+* No R code changes. With cpgdirection v3.4 and the rebuilt lookups, the
+  directions and E17 weights of pair-path calls change where cpgdirection's
+  answers change. On the 17,193 Project Alpha cascade columns run through the
+  pair path in blood (Linux, without the TSS cache), 7,370 pairs were used
+  before, 154 of them with a gene on another chromosome; now 8,300, none.
+  The bundled maps are unchanged, so results that use them, including the
+  NAR analyses, are as in 0.99.21.
+
 # dmsa 0.99.21
 
 ## E17: the weight of a direction is its validated accuracy (PI ruling 2026-11-07)

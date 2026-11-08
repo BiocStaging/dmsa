@@ -148,16 +148,33 @@ test_that("LIVE: real pairs carry every column the adapter requires", {
 })
 
 test_that("LIVE: co-effects and pair-specific direction survive the adapter", {
-  skip_if(is.null(dmsa:::.cpgd("cpg_gene_pairs")), "cpg_gene_pairs() absent")
+  fn <- dmsa:::.cpgd("cpg_gene_pairs")
+  skip_if(is.null(fn), "cpg_gene_pairs() absent")
+  ## cpgdirection's own answer for every target of cg25140571 in blood
+  q <- as.data.frame(fn(cpgs = "cg25140571", tissue = "blood",
+                        universal = FALSE, verbose = FALSE))
+  key <- function(x, g) paste(x$usable[x$target_gene == g],
+                              x$best_direction[x$target_gene == g])
+  ## a second target whose answer differs from OXTR's (CAV3 with the
+  ## cpgdirectionData 0.99.5 lookups; TRIM66, used before, was a gene on
+  ## another chromosome and is no longer a target)
+  other <- setdiff(q$target_gene, "OXTR")
+  other <- other[vapply(other, function(g) key(q, g) != key(q, "OXTR"), logical(1))]
+  skip_if(!length(other), "no target of cg25140571 answers differently from OXTR")
+  g2 <- if ("CAV3" %in% other) "CAV3" else other[1]
   m <- dmsa:::.frame_measurements("cg25140571_BC21_T1_OXTR")
-  p <- dmsa:::.frame_cpg_gene_pairs(m, c("OXTR", "TRIM66"), tissue = "blood")
+  p <- as.data.frame(dmsa:::.frame_cpg_gene_pairs(m, c("OXTR", g2), tissue = "blood"))
   ## one CpG, two selected target genes -> two pairs, flagged as a co-effect
   expect_equal(nrow(p), 2L)
   expect_true(all(p$is_coeffect_selected))
-  ## direction is resolved WITHIN the pair: OXTR usable, TRIM66 abstains
+  ## direction is resolved WITHIN the pair, as cpgdirection resolves it
+  for (g in c("OXTR", g2)) {
+    expect_identical(p$usable[p$target_gene == g], q$usable[q$target_gene == g], info = g)
+    expect_equal(p$best_direction[p$target_gene == g], q$best_direction[q$target_gene == g],
+                 info = g)
+  }
   expect_true(p$usable[p$target_gene == "OXTR"])
   expect_equal(p$best_direction[p$target_gene == "OXTR"], -1L)
-  expect_false(p$usable[p$target_gene == "TRIM66"])
 })
 
 test_that("LIVE: the gene filter is never exceeded", {
