@@ -98,7 +98,7 @@ you commit. Every alignment records which map and version produced it.
 Supplying your own table still works — any data.frame with `d` and `p_plus`.
 The companion package [`cpgdirection`](https://github.com/teindor/cpgdirection)
 ([10.5281/zenodo.22024185](https://doi.org/10.5281/zenodo.22024185)) remains
-the complete resource: 3.1 million CpG-gene pairs, the further tissues, the
+the complete resource: 3.5 million CpG-gene pairs, the further tissues, the
 brain bridge and the SMR causal layer.
 
 Start with `vignette("dmsa")` — a complete worked analysis in which a

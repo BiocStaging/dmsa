@@ -136,7 +136,7 @@ Two things replace the simulation above:
 - **Direction calls.** `d` and `p_plus` come from a curated methylation-to-expression
   map. The companion package `cpgdirection`
   (<https://github.com/teindor/cpgdirection>, archived at
-  <https://doi.org/10.5281/zenodo.22024185>) supplies them for 3.1 million
+  <https://doi.org/10.5281/zenodo.22024185>) supplies them for 3.5 million
   CpG-gene pairs across four evidence classes, but any table with the same three
   columns works. `dmsa` does not require it.
 - **The two-call interface.** `dmsa_frame()` declares the design once — outcome,

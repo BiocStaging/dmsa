@@ -1,3 +1,48 @@
+# dmsa 0.99.23
+
+## The bundled direction maps are rebuilt from the corrected catalogue lookups (PI ruling 2026-11-08)
+
+* **What was wrong.** The two maps behind `dmsa_directions()` and
+  `dmsa_align()` (`direction_blood_hg19.rds`, `direction_epithelium_hg19.rds`,
+  version 2026.08) were cut from cpgdirection's catalogue lookups, whose build
+  placed many genes on the wrong chromosome (fixed in cpgdirectionData 0.99.5).
+  Checked against the EPIC v2 annotation, 84,117 blood rows (20.6% of those
+  checkable) and 15,313 epithelium rows (2.3%) paired a probe with a gene on
+  another chromosome; among the Alpha reference genes, 5,271 blood rows (82
+  genes) and 597 epithelium rows (10 genes).
+* **What changes.** Map version 2026.11 applies the same recipe to the
+  0.99.5 lookups (Zenodo record 24052448): every lookup row that carries a
+  call, ordered by probe then gene. On the 0.99.4 lookups the recipe
+  regenerates the 2026.08 maps identically. New script
+  `inst/scripts/make_direction_maps.R` builds them.
+
+  | map | pairs | probes | genes | rows on another chromosome |
+  |---|---|---|---|---|
+  | blood | 665,613 (was 488,204) | 293,679 (237,761) | 7,392 (5,376) | 0 (84,117) |
+  | epithelium | 718,943 (was 688,843) | 283,981 (277,830) | 4,641 (4,447) | 0 (15,313) |
+
+  Blood: 325,063 pairs identical, 6,223 with a new probability (7 with a new
+  sign), 156,918 removed (84,117 of them on another chromosome; most of the
+  rest are no longer candidates once the true genes take their place),
+  334,327 added. Epithelium: 654,280 identical, 34,563 removed, 64,663
+  added. Alpha reference genes covered: blood 288 -> 397, epithelium 300 ->
+  306.
+* **Effect.** `dmsa_align()` and `dmsa_directions()` return the 2026.11 calls
+  and stamp the new version. Of the curated Alpha cascade's probe-gene pairs,
+  the blood map now calls 2,713 (was 1,313) and the epithelium map 2,137
+  (was 2,011). The per-column Alpha snapshots used by
+  `dmsa_frame(direction_source = "bundled")` (`coverage_v4_full`,
+  `coverage_v5_cpgdirection`) take their probe-gene assignments from the
+  curated cascade and have no such row; they are unchanged, so the NAR and
+  registered-run results are as before. Of their catalogue-answered rows,
+  307 of 308 (v4) and 4,281 of 4,299 (v5) keep their call in the corrected
+  lookups and the others lose it; rebuilt, 295 of v4's 2,086 undirected
+  columns would gain a catalogue call.
+* New test: no bundled pair links a probe to a gene on another chromosome
+  (checked on the curated cascade; 167 blood and 19 epithelium rows on
+  2026.08). Documentation counts updated; the companion table is now 3.5M
+  pairs. No engine change.
+
 # dmsa 0.99.22
 
 ## Test follows cpgdirection's rebuilt catalogue lookups (no engine change)
