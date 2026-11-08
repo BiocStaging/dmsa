@@ -1,3 +1,13 @@
+# dmsa 0.99.25
+
+* **withr (>= 3.0.3).** withr fixed `local_seed()` not restoring the
+  caller's random seed only in 3.0.3. With an older withr, the seeded
+  functions of 0.99.24 left the session's RNG state changed (their results
+  were unaffected); the minimum was 2.5.0 and is now 3.0.3. Checked on
+  R 4.3.3: with withr 3.0.2 the three RNG-restoration tests fail, with 3.0.3
+  they pass, and the rest of the package installs, checks and runs; so
+  `Depends: R (>= 4.3.0)` stays.
+
 # dmsa 0.99.24
 
 ## BiocCheck fixes: runnable examples, `T`/`F`, `set.seed()` (no change to any result)
