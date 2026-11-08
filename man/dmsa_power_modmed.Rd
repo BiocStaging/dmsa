@@ -83,3 +83,8 @@ every path (the corrected estimator is unbiased in the mean; the
 bootstrap CI note of the gate reports applies) and the rate at which
 the conditioning guard shrank the offsets.
 }
+\examples{
+## moderated mediation through the package estimator, 20 replicates
+## (use 500 or more in a power analysis)
+dmsa_power_modmed(n = 200, a1 = 0.3, a3 = 0.2, b1 = 0.3, reps = 20)
+}

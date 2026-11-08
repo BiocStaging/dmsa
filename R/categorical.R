@@ -261,13 +261,9 @@ dmsa_omnibus <- function(data, Y, design, beta_input = TRUE, B = 999,
     seq_len(n)
   ## restore the caller's RNG state on exit: a permutation seed is for
   ## reproducing THIS result, not for silently reseeding the user's session.
-  .old_seed <- if (exists(".Random.seed", envir = globalenv()))
-    get(".Random.seed", envir = globalenv()) else NULL
-  on.exit(if (!is.null(.old_seed))
-    assign(".Random.seed", .old_seed, envir = globalenv())
-    else if (exists(".Random.seed", envir = globalenv()))
-      rm(".Random.seed", envir = globalenv()), add = TRUE)
-  set.seed(seed)
+  ## withr sets the seed and, on exit, restores the caller's state - or
+  ## removes it when there was none (E10); the draws are those of set.seed().
+  if (is.null(seed)) withr::local_preserve_seed() else withr::local_seed(seed)
   ## E6 fix (2026-08-29, PI-approved): the hand-rolled shuffle here wrote
   ## block-sorted values back into ORIGINAL row order, scrambling values
   ## across families whenever rows were not block-contiguous - a null that

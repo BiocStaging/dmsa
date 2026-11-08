@@ -94,11 +94,9 @@
 #'   \code{dmsa_select()} to choose systems, \code{dmsa_evidence()} for the
 #'   module evidence table.
 #' @examples
-#' \donttest{
 #' cas <- dmsa_sets()          # bundled Alpha 2026c
 #' cas
 #' dmsa_systems()                 # the short names to use in `systems =`
-#' }
 #' @export
 dmsa_sets <- function(x = "alpha", audit = NULL, polarity = NULL,
                       name = NULL) {
@@ -344,10 +342,8 @@ print.dmsa_sets <- function(x, ...) {
 #' @return A data.frame with \code{system_id}, \code{system_short},
 #'   \code{system} and the module/gene/CpG counts. Printed as a table.
 #' @examples
-#' \donttest{
 #' dmsa_systems()             # all 30
 #' dmsa_systems("stress|hpa") # search
-#' }
 #' @export
 dmsa_systems <- function(x = "alpha", pattern = NULL) {
   ## dmsa_systems("hpa") should search, not hunt for a file called "hpa". A bare
@@ -445,11 +441,9 @@ dmsa_systems <- function(x = "alpha", pattern = NULL) {
 #' @param data Optional data.frame or matrix used by \code{columns = "auto"}.
 #' @return An object of class \code{dmsa_selection}.
 #' @examples
-#' \donttest{
 #' sel <- dmsa_select(systems = c("hpa", "oxytocin"))
 #' sel
 #' dmsa_select(systems = "hpa", modules = c("2.6", "2.8"))
-#' }
 #' @export
 dmsa_select <- function(x = "alpha", systems = NULL, modules = "full",
                         genes = "full", probes = "full", columns = NULL,
@@ -592,9 +586,7 @@ print.dmsa_selection <- function(x, ...) {
 #'   \code{"flagged"} (Moderate, heterogeneous, or measurement-defined).
 #' @return data.frame of class \code{dmsa_evidence}, one row per module.
 #' @examples
-#' \donttest{
 #' dmsa_evidence(dmsa_select(systems = "immune"), which = "flagged")
-#' }
 #' @export
 dmsa_evidence <- function(x, which = c("all", "moderate", "flagged")) {
   which <- match.arg(which)

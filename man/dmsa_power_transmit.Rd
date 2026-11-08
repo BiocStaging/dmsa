@@ -41,3 +41,9 @@ level). With \code{units > 1} the level-local maxT family is bounded by
 Bonferroni (\code{alpha / units}, the conservative side of maxT), giving
 the power to NAME the unit within its level.
 }
+\examples{
+## 150 triads, maternal slope 0.25, scores at reliability 0.7
+dmsa_power_transmit(n = 150, beta_mother = 0.25, rel = 0.7)
+## the same, naming one of 5 modules (Bonferroni bound of the level's maxT)
+dmsa_power_transmit(n = 150, beta_mother = 0.25, rel = 0.7, units = 5)
+}

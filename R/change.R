@@ -315,13 +315,11 @@ dmsa_change <- function(M_before, M_after, data, outcome = NULL, exposure,
   ## One shared Rademacher stream across units -> joint maxT null.
   W <- matrix(numeric(0), 0, if (paired) length(pair_index$pair) else 0)
   if (paired && B > 0) {
-    old_seed <- if (exists(".Random.seed", envir = globalenv()))
-      get(".Random.seed", envir = globalenv()) else NULL
-    on.exit(if (!is.null(old_seed))
-      assign(".Random.seed", old_seed, envir = globalenv())
-      else if (exists(".Random.seed", envir = globalenv()))
-        rm(".Random.seed", envir = globalenv()), add = TRUE)
-    set.seed(seed)
+    ## restore the caller's RNG state on exit: a permutation seed is for
+    ## reproducing THIS result, not for silently reseeding the user's session.
+    ## withr sets the seed and, on exit, restores the caller's state - or
+    ## removes it when there was none (E10); the draws are those of set.seed().
+    if (is.null(seed)) withr::local_preserve_seed() else withr::local_seed(seed)
     W <- matrix(sample(c(-1, 1), B * length(pair_index$pair), replace = TRUE),
                 nrow = B, ncol = length(pair_index$pair))
   }

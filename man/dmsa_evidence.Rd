@@ -23,7 +23,5 @@ was retained or revised, whether the locked membership is homogeneous, the
 evidence tier, and the citation keys behind it.
 }
 \examples{
-\donttest{
 dmsa_evidence(dmsa_select(systems = "immune"), which = "flagged")
-}
 }

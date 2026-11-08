@@ -34,11 +34,9 @@ Signs are read against the system's declared activation tone, not
   \code{feedback-enabler}) because it is the error that inverts a module.
 }
 \examples{
-\donttest{
 pol <- dmsa_polarity()
 pol
 dmsa_polarity_review(pol)
-}
 }
 \seealso{
 \code{dmsa_polarity_review()} for the rows needing adjudication,

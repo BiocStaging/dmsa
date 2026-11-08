@@ -101,3 +101,26 @@ slope change \code{gamma3} of the exposed partner's unit on the other
 partner's unit (MATH 7.3) per unit at every level, the exposure never
 permuted.
 }
+\examples{
+## 40 synthetic couples on the probes of the oxytocin and HPA systems of
+## the bundled Alpha map, run on three plates; partners are re-paired
+## within plate for the null
+set.seed(3)
+mp <- utils::read.csv(system.file("extdata", "coverage_v4_full.csv",
+                                  package = "dmsa"))
+pr <- unique(mp$probe[is.finite(mp$best_direction) & mp$system_id \%in\% 1:2])
+nc <- 40
+P <- matrix(plogis(rnorm(2 * nc * length(pr), sd = 1.2)), 2 * nc,
+            length(pr), dimnames = list(NULL, pr))
+par <- data.frame(cID = rep(seq_len(nc), each = 2), sex = rep(c(2, 1), nc),
+                  age = rnorm(2 * nc), chip = factor(rep(1:10, each = 8)),
+                  plate = factor(rep(rep(1:3, length.out = nc), each = 2)))
+couples <- dmsa_contract(par, methylation = P, covariates = "age",
+                         sex = "sex", chip = "chip")
+## B and NP = 19 keep the example quick; the defaults are 1999 and 2000
+cc <- dmsa_concordance(couples, couple = "cID", partner_by = "sex",
+                       roles = c(woman = 2, man = 1), systems = "oxytocin",
+                       levels = c("module", "system"), batch = "plate",
+                       map = "alpha", B = 19, NP = 19)
+cc
+}

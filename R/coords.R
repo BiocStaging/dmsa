@@ -69,10 +69,20 @@
 #'   \code{NA}, which \code{dmsa_plot_locus()} handles.
 #' @seealso \code{\link{dmsa_plot_locus}}, which needs none of this.
 #' @examples
-#' \dontrun{
-#' co <- dmsa_probe_coords(my_probes)                    # via cpgdirection
-#' co <- dmsa_probe_coords(my_probes, file = "EPIC.hg38.manifest.tsv.gz")
-#' dmsa_write_coords(co)                                 # now a project asset
+#' ## from a manifest you already have (a three-probe stand-in here)
+#' f <- tempfile(fileext = ".tsv")
+#' utils::write.table(data.frame(probeID = c("cg00000029", "cg00000108",
+#'                                           "cg00000109"),
+#'                               CpG_chrm = c("chr16", "chr3", "chr3"),
+#'                               CpG_beg = c(53434200L, 37417715L, 172198247L)),
+#'                    f, sep = "\t", quote = FALSE, row.names = FALSE)
+#' dmsa_probe_coords(c("cg00000029", "cg00000109"), file = f)
+#'
+#' \donttest{
+#' ## the full EPIC v2 positions, through cpgdirection when it is installed,
+#' ## or a published manifest downloaded once into a cache
+#' ## co <- dmsa_probe_coords(my_probes)
+#' ## co <- dmsa_probe_coords(my_probes, url = "<manifest URL>")
 #' }
 #' @export
 dmsa_probe_coords <- function(probes, file = NULL, url = NULL, cache = NULL,

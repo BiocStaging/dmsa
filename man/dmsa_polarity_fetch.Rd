@@ -55,7 +55,7 @@ Nothing returned here is a polarity. It is a proposal, and the
 \code{needs_review} column is \code{TRUE} for every row.
 }
 \examples{
-\dontrun{
+\donttest{
 ## Needs network access: each gene is one HTTP call to the chosen resources.
 sel <- dmsa_select(systems = "hpa")
 draft <- dmsa_polarity_fetch(sel, anchors = list("2" = c("CRH", "POMC")))

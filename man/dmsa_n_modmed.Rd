@@ -30,3 +30,8 @@ the smallest n on a grid of 10 reaching \code{power} (with the power found).
 \description{
 Bisection on \code{n} over \code{\link{dmsa_power_modmed}} in the fast mode.
 }
+\examples{
+## the smallest n (grid of 10) for 80\% power of the indirect effect
+dmsa_n_modmed(target = "IE", power = 0.80, n_range = c(100, 800),
+              reps = 30, a1 = 0.3, b1 = 0.3)
+}

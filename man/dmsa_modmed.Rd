@@ -254,3 +254,24 @@ global mean also enter every equation as covariates. \code{sex = NULL} /
 \code{global_mean = FALSE} switch the additions off; \code{$rule} says
 which rule ran.
 }
+\examples{
+## 120 synthetic rows on the probes of three systems of the bundled Alpha
+## map: HPA (X), kynurenine (M) and oxytocin (W); 60 families of two
+set.seed(11)
+mp <- utils::read.csv(system.file("extdata", "coverage_v4_full.csv",
+                                  package = "dmsa"))
+pr <- unique(mp$probe[is.finite(mp$best_direction) &
+                        mp$system_id \%in\% c(1, 2, 15)])
+n <- 120
+B <- matrix(plogis(rnorm(n * length(pr), sd = 1.2)), n, length(pr),
+            dimnames = list(NULL, pr))
+dat <- data.frame(EPDS = rnorm(n), age = rnorm(n),
+                  chip = factor(rep(1:15, each = 8)),
+                  fam = factor(rep(1:60, each = 2)))
+## B = 19 keeps the example quick; use 1999 or more in an analysis
+fit <- dmsa_modmed(dat, methylation = B, map = "alpha", x = "hpa",
+                   m = "kynurenine", w = "oxytocin", y = "EPDS",
+                   covariates = "age", chip = "chip", block = "fam",
+                   B = 19, seed = 1)
+fit
+}

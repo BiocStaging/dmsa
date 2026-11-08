@@ -140,15 +140,9 @@ dmsa_triangulate <- function(M, data, rhs, term, units, alignment, block = NULL,
   if (!is.null(seed)) {
     ## restore the caller's RNG state on exit: a permutation seed is for
     ## reproducing THIS result, not for silently reseeding the user's session.
-    .old_seed <- if (exists(".Random.seed", envir = globalenv()))
-      get(".Random.seed", envir = globalenv()) else NULL
-    on.exit(if (!is.null(.old_seed))
-      assign(".Random.seed", .old_seed, envir = globalenv())
-      else if (exists(".Random.seed", envir = globalenv()))
-        ## E10: a true restore of "no prior RNG state" - otherwise a fresh
-        ## session leaves deterministically seeded mid-stream of `seed`
-        rm(".Random.seed", envir = globalenv()), add = TRUE)
-    set.seed(seed)
+    ## withr sets the seed and, on exit, restores the caller's state - or
+    ## removes it when there was none (E10); the draws are those of set.seed().
+    withr::local_seed(seed)
   }
   M <- as.matrix(M); data <- as.data.frame(data)
   block    <- .dmsa_rows(block,    data, "block")

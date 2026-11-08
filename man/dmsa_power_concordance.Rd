@@ -77,3 +77,11 @@ MATH 1.6 offsets with the conditioning guard, the HC contrast statistic
 against a normal reference; also the guard rate and the median ratio of
 the corrected curvature to the truth.
 }
+\examples{
+## within-couple correlation 0.2, 150 couples, reliability 0.7
+dmsa_power_concordance(n_couples = 150, r_couple = 0.2)
+## an exposure moving it from 0.1 to 0.3, half the couples exposed
+dmsa_power_exposure(n_couples = 150, r0 = 0.1, r1 = 0.3)
+## the corrected dyadic surface by simulation (20 replicates: quick)
+dmsa_power_surface(n = 150, a4 = 0.3, reps = 20, mode = "t")
+}

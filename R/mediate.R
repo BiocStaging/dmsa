@@ -432,23 +432,23 @@
     .med_measure(tones[[s]], measurement = measurement, label = s,
                  single_rel = single_rel, mod_w = mod_weights[[s]]))
   names(meas) <- systems
-  F <- vapply(meas, `[[`, numeric(n), "f")
-  colnames(F) <- systems
+  Fs <- vapply(meas, `[[`, numeric(n), "f")
+  colnames(Fs) <- systems
   voff <- vapply(meas, `[[`, numeric(1), "V")
 
   ## assemble the centered data matrix: latents, products, covariates, ys
   prods <- list()
-  D <- F
+  D <- Fs
   if (!is.null(w)) for (xx in x) {
     pn <- paste0(xx, ":", w)
-    D <- cbind(D, F[, xx] * F[, w]); colnames(D)[ncol(D)] <- pn
+    D <- cbind(D, Fs[, xx] * Fs[, w]); colnames(D)[ncol(D)] <- pn
     prods[[pn]] <- c(xx, w)
   }
   C <- if (length(covariates))
     scale(as.matrix(dat[, covariates, drop = FALSE]), scale = FALSE) else NULL
   yv <- dat[[outcome]] - mean(dat[[outcome]])
   D <- cbind(D, C, y = yv)
-  if (!is.null(C)) colnames(D)[seq(ncol(F) + length(prods) + 1L,
+  if (!is.null(C)) colnames(D)[seq(ncol(Fs) + length(prods) + 1L,
                                    length.out = ncol(C))] <- covariates
   D <- scale(D, scale = FALSE)
 
@@ -646,25 +646,25 @@
 #'   indirect effects, bootstrap CIs when requested, and the corrected
 #'   moment machinery for inspection.
 #' @examples
-#' ## synthetic end-to-end run at analysis scale (see tests for the
-#' ## simulation-gate harness)
-#' \donttest{
-#' set.seed(1)
+#' ## 120 synthetic rows on the probes of three systems of the bundled Alpha
+#' ## map: HPA (X), kynurenine (M) and oxytocin (W); 60 families of two
+#' set.seed(11)
+#' mp <- utils::read.csv(system.file("extdata", "coverage_v4_full.csv",
+#'                                   package = "dmsa"))
+#' pr <- unique(mp$probe[is.finite(mp$best_direction) &
+#'                         mp$system_id %in% c(1, 2, 15)])
 #' n <- 120
-#' eta <- matrix(rnorm(n * 3), n, 3)                 # hpa, oxytocin, kyn
-#' mk <- function(f, p) sapply(seq_len(p), function(j)
-#'   0.7 * f + rnorm(n, sd = sqrt(1 - 0.49)))
-#' tones <- list(hpa = mk(eta[, 1], 6), oxytocin = mk(eta[, 2], 8),
-#'               kyn = mk(0.4 * eta[, 1] * eta[, 2] + 0.3 * eta[, 1], 5))
-#' dat <- data.frame(y = 0.5 * (0.4 * eta[, 1] * eta[, 2] + 0.3 * eta[, 1]) +
-#'                     rnorm(n), age = rnorm(n))
-#' fit <- dmsa:::.med_core(tones, dat, x = "hpa", m = "kyn", w = "oxytocin",
-#'                         outcome = "y", covariates = "age",
-#'                         measurement = "tau", B = 199, blocks = NULL,
-#'                         model8 = FALSE, conditional_at = c(-1, 0, 1),
-#'                         alpha_ssc = 0)
-#' fit$indices
-#' }
+#' B <- matrix(plogis(rnorm(n * length(pr), sd = 1.2)), n, length(pr),
+#'             dimnames = list(NULL, pr))
+#' dat <- data.frame(EPDS = rnorm(n), age = rnorm(n),
+#'                   chip = factor(rep(1:15, each = 8)),
+#'                   fam = factor(rep(1:60, each = 2)))
+#' ## B = 19 keeps the example quick; use 1999 or more in an analysis
+#' fit <- dmsa_mediate(dat, methylation = B, map = "alpha", x = "hpa",
+#'                     m = "kynurenine", w = "oxytocin", outcome = "EPDS",
+#'                     covariates = "age", chip = "chip", block = "fam",
+#'                     B = 19, seed = 1)
+#' fit
 #' @export
 dmsa_mediate <- function(data, methylation = NULL, map = "auto",
                          x, m, w = NULL, outcome, covariates = character(),
@@ -700,13 +700,11 @@ dmsa_mediate <- function(data, methylation = NULL, map = "auto",
                        map_level = map_level, tissue = tissue, pairs = pairs, B = B, boot = boot, alpha_ssc = alpha_ssc,
                        conditional_at = conditional_at, beta_input = beta_input, seed = seed, pivot = pivot, strata = strata))
   if (!is.null(seed)) {
-    .old_seed <- if (exists(".Random.seed", envir = globalenv()))
-      get(".Random.seed", envir = globalenv()) else NULL
-    on.exit(if (!is.null(.old_seed))
-      assign(".Random.seed", .old_seed, envir = globalenv())
-      else if (exists(".Random.seed", envir = globalenv()))
-        rm(".Random.seed", envir = globalenv()), add = TRUE)
-    set.seed(seed)
+    ## restore the caller's RNG state on exit: a permutation seed is for
+    ## reproducing THIS result, not for silently reseeding the user's session.
+    ## withr sets the seed and, on exit, restores the caller's state - or
+    ## removes it when there was none (E10); the draws are those of set.seed().
+    withr::local_seed(seed)
   }
 
   ## -- unwrap a dmsa_import delivery, dmsa_frame-style ---------------------

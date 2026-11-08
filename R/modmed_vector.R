@@ -18,20 +18,20 @@
                        theta_mm = NULL) {
   n <- length(meas[[y]]$f)
   nm <- c(x, m, if (!is.null(w)) w, y)
-  F <- vapply(nm, function(v) meas[[v]]$f - mean(meas[[v]]$f), numeric(n)); colnames(F) <- nm
+  Fs <- vapply(nm, function(v) meas[[v]]$f - mean(meas[[v]]$f), numeric(n)); colnames(Fs) <- nm
   voff <- vapply(nm, function(v) meas[[v]]$V, numeric(1)); names(voff) <- nm
   voff <- voff[voff > 0]
-  prods <- list(); D <- F
+  prods <- list(); D <- Fs
   addcol <- function(D, v, pn) { D <- cbind(D, v); colnames(D)[ncol(D)] <- pn; D }
   xw <- character(); mw_ <- character()
   if (!is.null(w)) {
     if (w_on %in% c("a", "both") || direct_moderation) for (xi in x) {
-      pn <- paste0(xi, ":", w); D <- addcol(D, F[, xi] * F[, w], pn); prods[[pn]] <- c(xi, w); xw <- c(xw, pn) }
+      pn <- paste0(xi, ":", w); D <- addcol(D, Fs[, xi] * Fs[, w], pn); prods[[pn]] <- c(xi, w); xw <- c(xw, pn) }
     if (w_on %in% c("b", "both")) for (mj in m) {
-      pn <- paste0(mj, ":", w); D <- addcol(D, F[, mj] * F[, w], pn); prods[[pn]] <- c(mj, w); mw_ <- c(mw_, pn) }
+      pn <- paste0(mj, ":", w); D <- addcol(D, Fs[, mj] * Fs[, w], pn); prods[[pn]] <- c(mj, w); mw_ <- c(mw_, pn) }
   }
   if (quadratic) for (v in unique(c(x, w, m))) {
-    pn <- paste0(v, "^2"); D <- addcol(D, F[, v]^2, pn); prods[[pn]] <- c(v, v) }
+    pn <- paste0(v, "^2"); D <- addcol(D, Fs[, v]^2, pn); prods[[pn]] <- c(v, v) }
   if (!is.null(covM)) { C <- scale(as.matrix(covM), scale = FALSE); D <- cbind(D, C)
     colnames(D)[seq(ncol(D) - ncol(C) + 1, ncol(D))] <- covn }
   D <- scale(D, scale = FALSE)

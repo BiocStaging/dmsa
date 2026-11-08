@@ -392,13 +392,21 @@
 #'   never a fabricated one.
 #' @seealso \code{\link{dmsa_gene_model_check}}, \code{\link{dmsa_plot_locus}}
 #' @examples
-#' \dontrun{
+#' ## from a table you already have: AVP on the minus strand
+#' gm <- dmsa_gene_model("AVP", source = "table", table = data.frame(
+#'   gene = "AVP", gene_id = "ENSG00000101200", chr = "chr20",
+#'   gene_start = 3082556, gene_end = 3084724, strand = "-",
+#'   transcript = "ENST00000380293", transcript_biotype = "protein_coding",
+#'   canonical = TRUE, feature = c("utr5", "cds", "cds", "utr3"),
+#'   start = c(3084665, 3084555, 3082700, 3082556),
+#'   end   = c(3084724, 3084664, 3082802, 3082699),
+#'   exon_rank = c(1, 1, 3, 3), source = "gff", genome = "hg38"))
+#' gm
+#'
+#' \donttest{
 #' ## Needs network: one lookup plus one region query per gene.
 #' gm <- dmsa_gene_model("NR3C1")
 #' subset(gm, canonical)[, c("feature", "start", "end", "exon_rank")]
-#'
-#' ## Or from an annotation you already have, with no network at all:
-#' gm <- dmsa_gene_model("NR3C1", source = "gff", file = "Homo_sapiens.gtf.gz")
 #' }
 #' @export
 dmsa_gene_model <- function(gene, source = c("auto", "ensembl", "gff", "txdb",
@@ -581,9 +589,24 @@ print.dmsa_gene_model <- function(x, ...) {
 #' @return Invisibly, the list of tracks plotted.
 #' @seealso \code{\link{dmsa_plot_locus}} for the dependency-free panel.
 #' @examples
-#' \dontrun{
-#' gm <- dmsa_gene_model("NR3C1")
-#' dmsa_plot_locus_gviz(pr, gene = "NR3C1", gene_model = gm)
+#' \donttest{
+#' ## Needs the Gviz package; the gene model comes from a table, offline.
+#' if (requireNamespace("Gviz", quietly = TRUE)) {
+#'   gm <- dmsa_gene_model("AVP", source = "table", table = data.frame(
+#'     gene = "AVP", gene_id = "ENSG00000101200", chr = "chr20",
+#'     gene_start = 3082556, gene_end = 3084724, strand = "-",
+#'     transcript = "ENST00000380293", transcript_biotype = "protein_coding",
+#'     canonical = TRUE, feature = c("utr5", "cds", "cds", "utr3"),
+#'     start = c(3084665, 3084555, 3082700, 3082556),
+#'     end   = c(3084724, 3084664, 3082802, 3082699),
+#'     exon_rank = c(1, 1, 3, 3), source = "gff", genome = "hg38"))
+#'   probes <- data.frame(probe = paste0("cg", 1:5), chr = "chr20",
+#'                        pos = c(3082600, 3082750, 3083050, 3084600, 3084700),
+#'                        b = c(-.04, .02, .03, -.05, -.06), se = rep(.015, 5),
+#'                        d = c(-1, 1, 1, -1, -1), p = c(.01, .3, .04, .002, .001))
+#'   dmsa_plot_locus_gviz(probes, gene = "AVP", gene_model = gm,
+#'                        file = tempfile(fileext = ".png"))
+#' }
 #' }
 #' @export
 dmsa_plot_locus_gviz <- function(probes, gene = "", gene_model = NULL,

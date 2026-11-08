@@ -28,6 +28,11 @@
 #' @param alpha two-sided level.
 #' @param power target power for \code{dmsa_n_slope}.
 #' @return power (a probability), or the n reaching \code{power}.
+#' @examples
+#' ## a latent slope of 0.2, n = 300, the tone at reliability 0.7
+#' dmsa_power_slope(r = 0.2, n = 300, rel_x = 0.7)
+#' ## the n reaching 80% power for the same slope
+#' dmsa_n_slope(r = 0.2, power = 0.80, rel_x = 0.7)
 #' @export
 dmsa_power_slope <- function(r, n, rel_x = 1, rel_y = 1, k = 0, alpha = 0.05) {
   r_obs <- r * sqrt(rel_x * rel_y)
@@ -111,6 +116,10 @@ dmsa_n_slope <- function(r, power = 0.80, rel_x = 1, rel_y = 1, k = 0, alpha = 0
 #' @return a \code{dmsa_power} object: \code{$power} (a1, a3, b1, b3, IE, IMM),
 #'   \code{$estimates} (mean corrected estimates against the truth),
 #'   \code{$design}.
+#' @examples
+#' ## moderated mediation through the package estimator, 20 replicates
+#' ## (use 500 or more in a power analysis)
+#' dmsa_power_modmed(n = 200, a1 = 0.3, a3 = 0.2, b1 = 0.3, reps = 20)
 #' @export
 dmsa_power_modmed <- function(n, a1, a3 = 0, b1, b3 = 0, a2 = 0.2, c1 = 0.2, c2 = 0.1, rxw = 0.3,
                               rel = c(X = 0.7, M = 0.7, W = 1, Y = 1), w_on = c("both", "a", "b"),
@@ -119,7 +128,7 @@ dmsa_power_modmed <- function(n, a1, a3 = 0, b1, b3 = 0, a2 = 0.2, c1 = 0.2, c2 
   w_on <- match.arg(w_on); mode <- match.arg(mode)
   if (!moderator) { a3 <- 0; b3 <- 0; a2 <- 0; c2 <- 0; w_on <- "a" }   # no W in the world or the model
   rel0 <- c(X = 0.7, M = 0.7, W = 1, Y = 1); rel0[names(rel)] <- rel; rel <- rel0
-  if (!is.null(seed)) set.seed(seed)
+  if (!is.null(seed)) withr::local_seed(seed)   # same draws; the caller's RNG state restored on exit
   R <- t(vapply(seq_len(reps), function(r) tryCatch(
     .power_modmed_cell(n, a1, a3, b1, b3, a2, c1, c2, rxw, rel, w_on, quadratic, k_cov, families, mode, B, alpha, moderator),
     error = function(e) rep(NA_real_, 11)), numeric(11)))
@@ -148,6 +157,10 @@ dmsa_power_modmed <- function(n, a1, a3 = 0, b1, b3 = 0, a2 = 0.2, c1 = 0.2, c2 
 #' @param ... further arguments to \code{\link{dmsa_power_modmed}} (paths,
 #'   reliabilities, \code{w_on}, ...).
 #' @return the smallest n on a grid of 10 reaching \code{power} (with the power found).
+#' @examples
+#' ## the smallest n (grid of 10) for 80% power of the indirect effect
+#' dmsa_n_modmed(target = "IE", power = 0.80, n_range = c(100, 800),
+#'               reps = 30, a1 = 0.3, b1 = 0.3)
 #' @export
 dmsa_n_modmed <- function(target = "IMM", power = 0.80, n_range = c(60, 2000), reps = 300L, ...) {
   f <- function(n) dmsa_power_modmed(n = n, reps = reps, mode = "t", ...)$power[[target]]
@@ -173,6 +186,11 @@ dmsa_n_modmed <- function(target = "IMM", power = 0.80, n_range = c(60, 2000), r
 #' @param k number of covariates.
 #' @param alpha two-sided level.
 #' @return a data.frame: one row per parent with the raw and the level-named power.
+#' @examples
+#' ## 150 triads, maternal slope 0.25, scores at reliability 0.7
+#' dmsa_power_transmit(n = 150, beta_mother = 0.25, rel = 0.7)
+#' ## the same, naming one of 5 modules (Bonferroni bound of the level's maxT)
+#' dmsa_power_transmit(n = 150, beta_mother = 0.25, rel = 0.7, units = 5)
 #' @export
 dmsa_power_transmit <- function(n, beta_mother, beta_father = 0, r_mf = 0.2, rel = 0.7, units = 1L, k = 4L, alpha = 0.05) {
   vy <- beta_mother^2 + beta_father^2 + 2 * beta_mother * beta_father * r_mf
@@ -205,6 +223,13 @@ dmsa_power_transmit <- function(n, beta_mother, beta_father = 0, r_mf = 0.2, rel
 #' @param alpha two-sided level.
 #' @return \code{dmsa_power_concordance} / \code{dmsa_power_exposure}: named numeric (power, and the n for .80);
 #'   \code{dmsa_power_surface}: named numeric (power, guard_rate, median_a4_ratio).
+#' @examples
+#' ## within-couple correlation 0.2, 150 couples, reliability 0.7
+#' dmsa_power_concordance(n_couples = 150, r_couple = 0.2)
+#' ## an exposure moving it from 0.1 to 0.3, half the couples exposed
+#' dmsa_power_exposure(n_couples = 150, r0 = 0.1, r1 = 0.3)
+#' ## the corrected dyadic surface by simulation (20 replicates: quick)
+#' dmsa_power_surface(n = 150, a4 = 0.3, reps = 20, mode = "t")
 #' @export
 dmsa_power_concordance <- function(n_couples, r_couple, rel = 0.7, units = 1L, alpha = 0.05) {
   c(power_raw = dmsa_power_slope(r_couple, n_couples, rel, rel, 0, alpha),
@@ -235,7 +260,7 @@ dmsa_power_exposure <- function(n_couples, r0, r1, p1 = 0.5, rel = 0.7, alpha = 
 dmsa_power_surface <- function(n, a4, r_couple = 0.1, rel = 0.7, b1 = 0.2, b2 = 0.1, reps = 500L, alpha = 0.05, seed = 2L,
                                mode = c("perm", "t"), B = 199L) {
   mode <- match.arg(mode)
-  set.seed(seed); b3 <- a4 / 4; b5 <- a4 / 4; b4 <- -a4 / 2      # a4 = b3 - b4 + b5
+  if (is.null(seed)) withr::local_preserve_seed() else withr::local_seed(seed); b3 <- a4 / 4; b5 <- a4 / 4; b4 <- -a4 / 2      # a4 = b3 - b4 + b5
   rej <- rep(NA, reps); ratio <- rep(NA_real_, reps); guard <- rep(NA, reps)
   xn <- c("act", "par", "act2", "actpar", "par2"); cv <- stats::setNames(c(0, 0, 1, -1, 1), xn)
   for (r in seq_len(reps)) {

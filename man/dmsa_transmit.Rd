@@ -80,3 +80,31 @@ level-local family (all units of the system at that level, as
 father effect of the mother's size or larger argues against intrauterine
 transmission (genotype, household or the paternal germline remain).
 }
+\examples{
+## 40 synthetic families on the probes of the oxytocin and HPA systems of
+## the bundled Alpha map; each child carries part of its mother's
+## methylation
+set.seed(3)
+mp <- utils::read.csv(system.file("extdata", "coverage_v4_full.csv",
+                                  package = "dmsa"))
+pr <- unique(mp$probe[is.finite(mp$best_direction) & mp$system_id \%in\% 1:2])
+nf <- 40
+P <- matrix(plogis(rnorm(2 * nf * length(pr), sd = 1.2)), 2 * nf,
+            length(pr), dimnames = list(NULL, pr))
+par <- data.frame(cID = rep(seq_len(nf), each = 2), sex = rep(c(2, 1), nf),
+                  age = rnorm(2 * nf), chip = factor(rep(1:10, each = 8)))
+C0 <- matrix(rnorm(nf * length(pr), sd = 1.2), nf, length(pr),
+             dimnames = list(NULL, pr))
+C <- plogis(C0 + 0.4 * qlogis(P[seq(1, 2 * nf, 2), ]))
+chi <- data.frame(cID = seq_len(nf), sex = rbinom(nf, 1, 0.5) + 1,
+                  bw = rnorm(nf), chip = factor(rep(1:5, each = 8)))
+child <- dmsa_contract(chi, methylation = C, covariates = "bw",
+                       sex = "sex", chip = "chip")
+parents <- dmsa_contract(par, methylation = P, covariates = "age",
+                         sex = "sex", chip = "chip")
+## B = 19 keeps the example quick; the default is 1999
+tr <- dmsa_transmit(child, parents, link = "cID", parent_role = "sex",
+                    roles = c(mother = 2, father = 1), systems = "oxytocin",
+                    levels = c("module", "system"), map = "alpha", B = 19)
+tr
+}

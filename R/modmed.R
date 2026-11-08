@@ -131,19 +131,19 @@
                      B, blocks, block_mode, conditional_at, alpha_ssc, pivot = "hc", strata = NULL) {
   n <- length(meas[[y]]$f)
   nm <- c(x, m, if (!is.null(w)) w, y)
-  F <- vapply(nm, function(v) meas[[v]]$f - mean(meas[[v]]$f), numeric(n)); colnames(F) <- nm
+  Fs <- vapply(nm, function(v) meas[[v]]$f - mean(meas[[v]]$f), numeric(n)); colnames(Fs) <- nm
   voff <- vapply(nm, function(v) meas[[v]]$V, numeric(1)); names(voff) <- nm
   voff <- voff[voff > 0]
-  prods <- list(); D <- F
+  prods <- list(); D <- Fs
   addcol <- function(D, v, pn) { D <- cbind(D, v); colnames(D)[ncol(D)] <- pn; D }
   if (!is.null(w)) {
     if (w_on %in% c("a", "both") || direct_moderation) {
-      pn <- paste0(x, ":", w); D <- addcol(D, F[, x] * F[, w], pn); prods[[pn]] <- c(x, w) }
+      pn <- paste0(x, ":", w); D <- addcol(D, Fs[, x] * Fs[, w], pn); prods[[pn]] <- c(x, w) }
     if (w_on %in% c("b", "both")) {
-      pn <- paste0(m, ":", w); D <- addcol(D, F[, m] * F[, w], pn); prods[[pn]] <- c(m, w) }
+      pn <- paste0(m, ":", w); D <- addcol(D, Fs[, m] * Fs[, w], pn); prods[[pn]] <- c(m, w) }
   }
   if (quadratic) for (v in unique(c(x, w, m))) {
-    pn <- paste0(v, "^2"); D <- addcol(D, F[, v]^2, pn); prods[[pn]] <- c(v, v) }
+    pn <- paste0(v, "^2"); D <- addcol(D, Fs[, v]^2, pn); prods[[pn]] <- c(v, v) }
   if (!is.null(covM)) { C <- scale(as.matrix(covM), scale = FALSE); D <- cbind(D, C)
     colnames(D)[seq(ncol(D) - ncol(C) + 1, ncol(D))] <- covn }
   D <- scale(D, scale = FALSE)
@@ -289,6 +289,26 @@
 #'   collinearity diagnostics, the moment guard, the connected-measurement
 #'   record, the sensitivity table, and (with \code{boot > 0}) percentile
 #'   and basic bootstrap intervals.
+#' @examples
+#' ## 120 synthetic rows on the probes of three systems of the bundled Alpha
+#' ## map: HPA (X), kynurenine (M) and oxytocin (W); 60 families of two
+#' set.seed(11)
+#' mp <- utils::read.csv(system.file("extdata", "coverage_v4_full.csv",
+#'                                   package = "dmsa"))
+#' pr <- unique(mp$probe[is.finite(mp$best_direction) &
+#'                         mp$system_id %in% c(1, 2, 15)])
+#' n <- 120
+#' B <- matrix(plogis(rnorm(n * length(pr), sd = 1.2)), n, length(pr),
+#'             dimnames = list(NULL, pr))
+#' dat <- data.frame(EPDS = rnorm(n), age = rnorm(n),
+#'                   chip = factor(rep(1:15, each = 8)),
+#'                   fam = factor(rep(1:60, each = 2)))
+#' ## B = 19 keeps the example quick; use 1999 or more in an analysis
+#' fit <- dmsa_modmed(dat, methylation = B, map = "alpha", x = "hpa",
+#'                    m = "kynurenine", w = "oxytocin", y = "EPDS",
+#'                    covariates = "age", chip = "chip", block = "fam",
+#'                    B = 19, seed = 1)
+#' fit
 #' @export
 dmsa_modmed <- function(data, methylation = NULL, map = "auto",
                         x, m, w = NULL, y, roles = NULL, composite_rel = 0.70,
@@ -313,10 +333,11 @@ dmsa_modmed <- function(data, methylation = NULL, map = "auto",
   .args <- mget(setdiff(names(formals(dmsa_modmed)), "sensitivities"))
   if (is.null(w)) { w_on <- "a"; direct_moderation <- FALSE }   # plain mediation
   if (!is.null(seed)) {
-    .old_seed <- if (exists(".Random.seed", envir = globalenv())) get(".Random.seed", envir = globalenv()) else NULL
-    on.exit(if (!is.null(.old_seed)) assign(".Random.seed", .old_seed, envir = globalenv())
-            else if (exists(".Random.seed", envir = globalenv())) rm(".Random.seed", envir = globalenv()), add = TRUE)
-    set.seed(seed)
+    ## restore the caller's RNG state on exit: a permutation seed is for
+    ## reproducing THIS result, not for silently reseeding the user's session.
+    ## withr sets the seed and, on exit, restores the caller's state - or
+    ## removes it when there was none (E10); the draws are those of set.seed().
+    withr::local_seed(seed)
   }
   cl <- match.call()
   if (inherits(data, "dmsa_import")) { if (is.null(methylation)) methylation <- data$methylation; data <- data$data }

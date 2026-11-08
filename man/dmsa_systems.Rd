@@ -23,8 +23,6 @@ A data.frame with \code{system_id}, \code{system_short},
 The systems available in a cascade, with the short names to select them by
 }
 \examples{
-\donttest{
 dmsa_systems()             # all 30
 dmsa_systems("stress|hpa") # search
-}
 }

@@ -1,3 +1,35 @@
+# dmsa 0.99.24
+
+## BiocCheck fixes: runnable examples, `T`/`F`, `set.seed()` (no change to any result)
+
+* **Runnable examples (the BiocStaging ERROR).** BiocCheck requires runnable
+  examples on at least 80% of exported help pages; 59 of 80 had them. New or
+  replaced examples on 21 pages (power, transmission, concordance, mediation,
+  moderated mediation, scores, coordinates, gene model, polarity, evidence,
+  selection, sets, systems) now run on small synthetic data built from the
+  bundled Alpha map. 77 of 80 pages are runnable; each runs in under 2.5 s.
+  `dmsa_coverage()`, `dmsa_polarity_fetch()` and `dmsa_plot_locus_gviz()`
+  stay in `\donttest{}` (they need cpgdirection, the network or Gviz).
+* **`T`/`F` symbols.** The local variable `F` (the F statistic) in
+  `R/mediate.R`, `R/modmed.R` and `R/modmed_vector.R` is renamed `Fs`.
+* **`set.seed()` replaced by `withr::local_seed()`** in every permutation
+  and bootstrap function (PI-approved 2026-11-08). The draws are those of
+  `set.seed(seed)`, so every result is unchanged; on exit the caller's RNG
+  state is restored, or removed when there was none (E10). Twelve functions
+  already restored the caller's state by hand; four (`dmsa_transmit()`,
+  `dmsa_concordance()`, `dmsa_power_modmed()`, `dmsa_power_surface()`, and so
+  `dmsa_n_modmed()` and `dmsa_power_concordance()`) left the session
+  reseeded and now restore it too. Where `seed = NULL` reached a reseeding
+  step (`dmsa_omnibus()`, the paired branch of `dmsa_change()`,
+  `dmsa_power_surface()`), the permutations are now drawn from the caller's
+  stream - reproducible under the caller's `set.seed()` - instead of a
+  clock-seeded stream. `withr` joins Imports.
+* **Verification.** Every example page was run under 0.99.23 and 0.99.24
+  from the same session seed: all 77 return identical values (apart from
+  temp-file names, timestamps and the recorded run time); the RNG state
+  after each expression differs only on the pages that call the four
+  functions above.
+
 # dmsa 0.99.23
 
 ## The bundled direction maps are rebuilt from the corrected catalogue lookups (PI ruling 2026-11-08)

@@ -77,7 +77,10 @@
 ## shared permutation stream: exchange among blocks of equal size (the
 ## scheme of .med_fl block_mode = "exchange"; blocks NULL = free permutation)
 .hier_perms <- function(blocks, n, B, seed = NULL) {
-  if (!is.null(seed)) set.seed(seed)
+  ## the seed is set in the CALLER's frame: the caller's later draws continue
+  ## this stream (as set.seed() did), and the caller's RNG state is restored
+  ## when the caller exits
+  if (!is.null(seed)) withr::local_seed(seed, .local_envir = parent.frame())
   if (is.null(blocks)) return(lapply(seq_len(B), function(b) sample.int(n)))
   rws <- split(seq_len(n), blocks); grp <- split(seq_along(rws), lengths(rws))
   lapply(seq_len(B), function(b) { ix <- integer(n)
@@ -165,6 +168,33 @@
 #' @return a \code{dmsa_transmit} object: \code{$units} (one row per system x
 #'   level x unit: mother and father slopes, raw p, maxT p, tree p),
 #'   \code{$named}, \code{$summary}, \code{$measurement}, \code{$design}.
+#' @examples
+#' ## 40 synthetic families on the probes of the oxytocin and HPA systems of
+#' ## the bundled Alpha map; each child carries part of its mother's
+#' ## methylation
+#' set.seed(3)
+#' mp <- utils::read.csv(system.file("extdata", "coverage_v4_full.csv",
+#'                                   package = "dmsa"))
+#' pr <- unique(mp$probe[is.finite(mp$best_direction) & mp$system_id %in% 1:2])
+#' nf <- 40
+#' P <- matrix(plogis(rnorm(2 * nf * length(pr), sd = 1.2)), 2 * nf,
+#'             length(pr), dimnames = list(NULL, pr))
+#' par <- data.frame(cID = rep(seq_len(nf), each = 2), sex = rep(c(2, 1), nf),
+#'                   age = rnorm(2 * nf), chip = factor(rep(1:10, each = 8)))
+#' C0 <- matrix(rnorm(nf * length(pr), sd = 1.2), nf, length(pr),
+#'              dimnames = list(NULL, pr))
+#' C <- plogis(C0 + 0.4 * qlogis(P[seq(1, 2 * nf, 2), ]))
+#' chi <- data.frame(cID = seq_len(nf), sex = rbinom(nf, 1, 0.5) + 1,
+#'                   bw = rnorm(nf), chip = factor(rep(1:5, each = 8)))
+#' child <- dmsa_contract(chi, methylation = C, covariates = "bw",
+#'                        sex = "sex", chip = "chip")
+#' parents <- dmsa_contract(par, methylation = P, covariates = "age",
+#'                          sex = "sex", chip = "chip")
+#' ## B = 19 keeps the example quick; the default is 1999
+#' tr <- dmsa_transmit(child, parents, link = "cID", parent_role = "sex",
+#'                     roles = c(mother = 2, father = 1), systems = "oxytocin",
+#'                     levels = c("module", "system"), map = "alpha", B = 19)
+#' tr
 #' @export
 dmsa_transmit <- function(child, parents, link = "cID", parent_role = "sex", roles = c(mother = 2, father = 1),
                           systems, levels = c("probe", "gene", "module", "system"), map = "auto",
@@ -316,6 +346,28 @@ print.dmsa_transmit <- function(x, ...) {
 #' @return a \code{dmsa_concordance} object: \code{$step0}, \code{$surface},
 #'   \code{$exposure} (each one row per system x level x unit),
 #'   \code{$summary}, \code{$measurement}, \code{$design}.
+#' @examples
+#' ## 40 synthetic couples on the probes of the oxytocin and HPA systems of
+#' ## the bundled Alpha map, run on three plates; partners are re-paired
+#' ## within plate for the null
+#' set.seed(3)
+#' mp <- utils::read.csv(system.file("extdata", "coverage_v4_full.csv",
+#'                                   package = "dmsa"))
+#' pr <- unique(mp$probe[is.finite(mp$best_direction) & mp$system_id %in% 1:2])
+#' nc <- 40
+#' P <- matrix(plogis(rnorm(2 * nc * length(pr), sd = 1.2)), 2 * nc,
+#'             length(pr), dimnames = list(NULL, pr))
+#' par <- data.frame(cID = rep(seq_len(nc), each = 2), sex = rep(c(2, 1), nc),
+#'                   age = rnorm(2 * nc), chip = factor(rep(1:10, each = 8)),
+#'                   plate = factor(rep(rep(1:3, length.out = nc), each = 2)))
+#' couples <- dmsa_contract(par, methylation = P, covariates = "age",
+#'                          sex = "sex", chip = "chip")
+#' ## B and NP = 19 keep the example quick; the defaults are 1999 and 2000
+#' cc <- dmsa_concordance(couples, couple = "cID", partner_by = "sex",
+#'                        roles = c(woman = 2, man = 1), systems = "oxytocin",
+#'                        levels = c("module", "system"), batch = "plate",
+#'                        map = "alpha", B = 19, NP = 19)
+#' cc
 #' @export
 dmsa_concordance <- function(data, couple = "cID", partner_by = "sex", roles = c(woman = 2, man = 1), systems,
                              levels = c("probe", "gene", "module", "system"), batch = NULL, outcome = NULL,
@@ -340,7 +392,7 @@ dmsa_concordance <- function(data, couple = "cID", partner_by = "sex", roles = c
   ncp <- length(ia)
   if (ncp < 30L) stop("only ", ncp, " complete couples", call. = FALSE)
   bt <- if (is.character(batch)) { bv <- dd[[batch]]; if (!all(bv[ia] == bv[ib])) warning("partners do not always share `batch`; the re-pairing is drawn within the ", rb, "'s batch", call. = FALSE); as.character(bv[ib]) } else rep("all", ncp)
-  set.seed(seed)
+  withr::local_seed(seed)          # same draws; the caller's RNG state restored on exit
   grp <- split(seq_len(ncp), bt)
   RP <- lapply(seq_len(NP), function(k) { ix <- seq_len(ncp); for (g in grp) ix[g] <- g[sample.int(length(g))]; ix })
   SC <- list(); meas <- list(); step0 <- list(); nfam <- c(step0 = 0L, surface = 0L, exposure = 0L)
@@ -414,7 +466,7 @@ dmsa_concordance <- function(data, couple = "cID", partner_by = "sex", roles = c
     ev <- suppressWarnings(as.numeric(dd[[exposure]][ie])); ev[!ev %in% c(0, 1)] <- NA; kp <- !is.na(ev)
     iep <- ie[kp]; iop <- io[kp]; Pv <- ev[kp]; np <- length(iep)
     if (np < 30L || sum(Pv) < 5L || sum(1 - Pv) < 5L) stop("exposure: ", np, " couples with a 0/1 value (", sum(Pv), " exposed)", call. = FALSE)
-    set.seed(seed + 2L); permsP <- lapply(seq_len(B), function(b) sample.int(np))
+    withr::local_seed(seed + 2L); permsP <- lapply(seq_len(B), function(b) sample.int(np))
     cvn <- setdiff(st$covariates, ct$sex)
     covP <- if (length(cvn)) { M <- cbind(as.matrix(st$data[iep, cvn, drop = FALSE]), as.matrix(st$data[iop, cvn, drop = FALSE])); mode(M) <- "numeric"
       colnames(M) <- c(paste0(sub("^\\.global_mean$", "global_mean", cvn), "_", exposed), paste0(sub("^\\.global_mean$", "global_mean", cvn), "_", setdiff(names(roles), exposed))); M } else NULL

@@ -43,9 +43,7 @@ question is genuinely narrower, and note that narrowing changes the declared
 family and therefore the multiplicity toll.
 }
 \examples{
-\donttest{
 sel <- dmsa_select(systems = c("hpa", "oxytocin"))
 sel
 dmsa_select(systems = "hpa", modules = c("2.6", "2.8"))
-}
 }

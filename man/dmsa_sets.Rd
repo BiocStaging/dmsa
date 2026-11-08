@@ -40,11 +40,9 @@ is separate from loading a direction map: the cascade says which probes form
 which unit, the direction map says which way each probe points.
 }
 \examples{
-\donttest{
 cas <- dmsa_sets()          # bundled Alpha 2026c
 cas
 dmsa_systems()                 # the short names to use in `systems =`
-}
 }
 \seealso{
 \code{dmsa_systems()} for the short names,

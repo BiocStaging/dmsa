@@ -138,11 +138,9 @@
 #'   names this explicitly (\code{brake-of-brake},
 #'   \code{feedback-enabler}) because it is the error that inverts a module.
 #' @examples
-#' \donttest{
 #' pol <- dmsa_polarity()
 #' pol
 #' dmsa_polarity_review(pol)
-#' }
 #' @export
 dmsa_polarity <- function(x = "alpha", sets = NULL) {
   if (is.null(x)) return(NULL)
@@ -510,7 +508,7 @@ dmsa_polarity_check <- function(x = "alpha", sets = NULL, verbose = TRUE) {
 #'   \code{evidence}, \code{citation} and \code{needs_review}, plus an
 #'   \code{attr(, "unreachable")} listing resources that did not respond.
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' ## Needs network access: each gene is one HTTP call to the chosen resources.
 #' sel <- dmsa_select(systems = "hpa")
 #' draft <- dmsa_polarity_fetch(sel, anchors = list("2" = c("CRH", "POMC")))

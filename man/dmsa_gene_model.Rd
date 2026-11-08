@@ -63,13 +63,21 @@ plain data frame so it can be built, inspected, corrected and cached like
 any other reference layer in this package.
 }
 \examples{
-\dontrun{
+## from a table you already have: AVP on the minus strand
+gm <- dmsa_gene_model("AVP", source = "table", table = data.frame(
+  gene = "AVP", gene_id = "ENSG00000101200", chr = "chr20",
+  gene_start = 3082556, gene_end = 3084724, strand = "-",
+  transcript = "ENST00000380293", transcript_biotype = "protein_coding",
+  canonical = TRUE, feature = c("utr5", "cds", "cds", "utr3"),
+  start = c(3084665, 3084555, 3082700, 3082556),
+  end   = c(3084724, 3084664, 3082802, 3082699),
+  exon_rank = c(1, 1, 3, 3), source = "gff", genome = "hg38"))
+gm
+
+\donttest{
 ## Needs network: one lookup plus one region query per gene.
 gm <- dmsa_gene_model("NR3C1")
 subset(gm, canonical)[, c("feature", "start", "end", "exon_rank")]
-
-## Or from an annotation you already have, with no network at all:
-gm <- dmsa_gene_model("NR3C1", source = "gff", file = "Homo_sapiens.gtf.gz")
 }
 }
 \seealso{

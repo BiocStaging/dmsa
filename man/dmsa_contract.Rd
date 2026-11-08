@@ -58,3 +58,16 @@ chip column and the tissue the direction map is resolved for. Measurement
 rule v1.2 adds the sex column and the array's global mean M-value to both
 lists; \code{sex = NULL} or \code{global_mean = FALSE} switch that off.
 }
+\examples{
+## one frame's contract: 16 samples on two chips, three probes
+set.seed(1)
+probes <- c("cg00052046", "cg00176879", "cg00308631")
+dat <- data.frame(age = rnorm(16), sex = rep(1:2, 8),
+                  chip = factor(rep(1:2, each = 8)))
+M <- matrix(plogis(rnorm(16 * 3)), 16, 3, dimnames = list(NULL, probes))
+ct <- dmsa_contract(dat, methylation = M, covariates = "age", sex = "sex",
+                    chip = "chip")
+class(ct)
+ct[c("covariates", "sex", "global_mean", "chip", "tissue")]
+## ?dmsa_transmit and ?dmsa_concordance show contracts in use
+}

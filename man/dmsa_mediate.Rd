@@ -185,23 +185,23 @@ are not attenuated by tone unreliability; inference is permutation-native
 declared index family).
 }
 \examples{
-## synthetic end-to-end run at analysis scale (see tests for the
-## simulation-gate harness)
-\donttest{
-set.seed(1)
+## 120 synthetic rows on the probes of three systems of the bundled Alpha
+## map: HPA (X), kynurenine (M) and oxytocin (W); 60 families of two
+set.seed(11)
+mp <- utils::read.csv(system.file("extdata", "coverage_v4_full.csv",
+                                  package = "dmsa"))
+pr <- unique(mp$probe[is.finite(mp$best_direction) &
+                        mp$system_id \%in\% c(1, 2, 15)])
 n <- 120
-eta <- matrix(rnorm(n * 3), n, 3)                 # hpa, oxytocin, kyn
-mk <- function(f, p) sapply(seq_len(p), function(j)
-  0.7 * f + rnorm(n, sd = sqrt(1 - 0.49)))
-tones <- list(hpa = mk(eta[, 1], 6), oxytocin = mk(eta[, 2], 8),
-              kyn = mk(0.4 * eta[, 1] * eta[, 2] + 0.3 * eta[, 1], 5))
-dat <- data.frame(y = 0.5 * (0.4 * eta[, 1] * eta[, 2] + 0.3 * eta[, 1]) +
-                    rnorm(n), age = rnorm(n))
-fit <- dmsa:::.med_core(tones, dat, x = "hpa", m = "kyn", w = "oxytocin",
-                        outcome = "y", covariates = "age",
-                        measurement = "tau", B = 199, blocks = NULL,
-                        model8 = FALSE, conditional_at = c(-1, 0, 1),
-                        alpha_ssc = 0)
-fit$indices
-}
+B <- matrix(plogis(rnorm(n * length(pr), sd = 1.2)), n, length(pr),
+            dimnames = list(NULL, pr))
+dat <- data.frame(EPDS = rnorm(n), age = rnorm(n),
+                  chip = factor(rep(1:15, each = 8)),
+                  fam = factor(rep(1:60, each = 2)))
+## B = 19 keeps the example quick; use 1999 or more in an analysis
+fit <- dmsa_mediate(dat, methylation = B, map = "alpha", x = "hpa",
+                    m = "kynurenine", w = "oxytocin", outcome = "EPDS",
+                    covariates = "age", chip = "chip", block = "fam",
+                    B = 19, seed = 1)
+fit
 }

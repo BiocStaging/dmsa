@@ -31,3 +31,9 @@ scores of reliabilities \code{rel_x}, \code{rel_y}, with \code{k} other
 predictors in the equation (they cost degrees of freedom); Fisher-z
 approximation on the attenuated correlation \code{r * sqrt(rel_x * rel_y)}.
 }
+\examples{
+## a latent slope of 0.2, n = 300, the tone at reliability 0.7
+dmsa_power_slope(r = 0.2, n = 300, rel_x = 0.7)
+## the n reaching 80\% power for the same slope
+dmsa_n_slope(r = 0.2, power = 0.80, rel_x = 0.7)
+}

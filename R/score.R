@@ -58,11 +58,15 @@
 #' @seealso \code{\link{dmsa_score}} for the single aligned vector on a
 #'   data.frame, \code{\link{dmsa_model}} for the upper-level model.
 #' @examples
-#' \dontrun{
-#' al <- dmsa_align(dir_table, genes = gene, level = "gene")
-#' S  <- dmsa_scores(M[, probes], al)
-#' dat$oxytocin <- S$aligned
-#' }
+#' ## a user direction table for one gene's six probes, aligned, then scored
+#' set.seed(1)
+#' dcall <- data.frame(cpg = sprintf("cg%08d", 1:6),
+#'                     d = c(1, -1, 1, -1, -1, 1),
+#'                     p_plus = c(0.9, 0.1, 0.8, 0.2, 0.15, 0.85))
+#' al <- dmsa_align(dcall, genes = rep("G1", 6), level = "gene")
+#' M <- matrix(rnorm(40 * 6), 40, 6, dimnames = list(NULL, dcall$cpg))
+#' S <- dmsa_scores(M, al)
+#' head(S)
 #' @export
 dmsa_scores <- function(M, alignment, method = c("expected", "fixed"),
                         winsor = 3,
@@ -173,15 +177,9 @@ dmsa_model <- function(formula, data, term, block = NULL, B = 1999,
   if (!is.null(seed)) {
     ## restore the caller's RNG state on exit: a permutation seed is for
     ## reproducing THIS result, not for silently reseeding the user's session.
-    .old_seed <- if (exists(".Random.seed", envir = globalenv()))
-      get(".Random.seed", envir = globalenv()) else NULL
-    on.exit(if (!is.null(.old_seed))
-      assign(".Random.seed", .old_seed, envir = globalenv())
-      else if (exists(".Random.seed", envir = globalenv()))
-        ## E10: a true restore of "no prior RNG state" - otherwise a fresh
-        ## session leaves deterministically seeded mid-stream of `seed`
-        rm(".Random.seed", envir = globalenv()), add = TRUE)
-    set.seed(seed)
+    ## withr sets the seed and, on exit, restores the caller's state - or
+    ## removes it when there was none (E10); the draws are those of set.seed().
+    withr::local_seed(seed)
   }
   block <- .dmsa_rows(block, as.data.frame(data), "block")
   .dmsa_check_block(block)

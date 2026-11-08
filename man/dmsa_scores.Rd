@@ -48,11 +48,15 @@ implicitly use, returned so that the comparison can be run rather than
 argued.
 }
 \examples{
-\dontrun{
-al <- dmsa_align(dir_table, genes = gene, level = "gene")
-S  <- dmsa_scores(M[, probes], al)
-dat$oxytocin <- S$aligned
-}
+## a user direction table for one gene's six probes, aligned, then scored
+set.seed(1)
+dcall <- data.frame(cpg = sprintf("cg\%08d", 1:6),
+                    d = c(1, -1, 1, -1, -1, 1),
+                    p_plus = c(0.9, 0.1, 0.8, 0.2, 0.15, 0.85))
+al <- dmsa_align(dcall, genes = rep("G1", 6), level = "gene")
+M <- matrix(rnorm(40 * 6), 40, 6, dimnames = list(NULL, dcall$cpg))
+S <- dmsa_scores(M, al)
+head(S)
 }
 \seealso{
 \code{\link{dmsa_score}} for the single aligned vector on a
