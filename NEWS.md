@@ -14,7 +14,8 @@
   0.99.5 lookups (Zenodo record 24052448): every lookup row that carries a
   call, ordered by probe then gene. On the 0.99.4 lookups the recipe
   regenerates the 2026.08 maps identically. New script
-  `inst/scripts/make_direction_maps.R` builds them.
+  `inst/scripts/make_direction_maps.R` builds them; it sets factor levels in
+  C (radix) order, so a rebuild is identical whatever the machine's locale.
 
   | map | pairs | probes | genes | rows on another chromosome |
   |---|---|---|---|---|

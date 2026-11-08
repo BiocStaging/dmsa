@@ -6,7 +6,8 @@
 ## DIRECT_eQTM, i.e. a non-missing direction); ABSTAIN rows are dropped.
 ## Columns: probe = cpg_id, gene = target_gene, d = direction (-1/+1),
 ## p_plus = probability_plus1, tier = evidence_tier. Rows are ordered by
-## probe, then gene (radix order); probe, gene and tier are factors. The
+## probe, then gene (radix order); probe, gene and tier are factors with
+## levels in C (radix) order, whatever the locale. The
 ## provenance list "dmsa_direction_map" is attached with n_pairs and
 ## n_probes of the object itself.
 ##
@@ -31,10 +32,15 @@ build_map <- function(lookup, meta) {
   L <- as.data.frame(lookup, stringsAsFactors = FALSE)
   r <- L[!is.na(L$direction), , drop = FALSE]
   r <- r[order(r$cpg_id, r$target_gene, method = "radix"), , drop = FALSE]
-  out <- data.frame(probe = factor(r$cpg_id), gene = factor(r$target_gene),
+  ## factor levels in C (radix) order: factor()'s default sorts by the
+  ## session's collation, which puts e.g. "LAT;SPNS1" before "LAT2" under
+  ## en_US and after it under C, so the same data would give a different
+  ## object on a different machine
+  lv <- function(x) factor(x, levels = sort(unique(x), method = "radix"))
+  out <- data.frame(probe = lv(r$cpg_id), gene = lv(r$target_gene),
                     d = as.integer(r$direction),
                     p_plus = as.numeric(r$probability_plus1),
-                    tier = factor(r$evidence_tier))
+                    tier = lv(r$evidence_tier))
   rownames(out) <- NULL
   meta$n_pairs <- nrow(out)
   meta$n_probes <- nlevels(out$probe)
