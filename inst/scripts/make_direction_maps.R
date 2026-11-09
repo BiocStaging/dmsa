@@ -14,7 +14,11 @@
 ## Run against the 0.99.4 lookups, this recipe regenerates the 2026.08 maps
 ## identically (identical() is TRUE for both). Map version 2026.11 is the
 ## same recipe on the cpgdirectionData 0.99.5 lookups (Zenodo record
-## 24052448), which place every gene on its own chromosome at an hg19 TSS.
+## 24052448), which place every gene on its own chromosome at an hg19 TSS;
+## 2026.11c is the same recipe on the cpgdirectionData 0.99.7 lookups (Zenodo
+## deposit 2.99.10 of concept 10.5281/zenodo.22225163): one Ensembl gene per
+## name at a strand-aware hg19 TSS, models retrained on harmonized pools.
+## (2026.11b, from the withdrawn 0.99.6 lookups, was never released.)
 ##
 ## Usage, from the dmsa package root:
 ##   Rscript inst/scripts/make_direction_maps.R [<dir with the lookup .rds>]
@@ -49,9 +53,11 @@ build_map <- function(lookup, meta) {
 }
 
 common <- list(build = "hg19",
-               source = "cpgdirectionData 0.99.5 (catalogue lookups rebuilt 2026-11-08)",
-               source_doi = "10.5281/zenodo.24052448",
-               version = "2026.11")
+               source = paste("cpgdirectionData 0.99.7 (catalogue training chain rebuilt:",
+                              "one Ensembl gene per name, strand-aware TSS, models",
+                              "retrained, 2026-11-08; Zenodo deposit 2.99.10)"),
+               source_doi = "10.5281/zenodo.22225163",
+               version = "2026.11c")
 layers <- list(
   blood = list(lookup = "lookup_blood_hg19",
                note = paste("Whole blood. The right proxy for an immune-dominated",

@@ -1,3 +1,52 @@
+# dmsa 0.99.27
+
+## Bundled direction maps 2026.11c: the catalogue's training chain rebuilt (PI rulings 2026-11-08 and 2026-11-09)
+
+* **What was wrong.** The cpgdirectionData 0.99.5 lookups behind map 2026.11
+  came from models trained on pools that:
+  - held wrong-end distances for Framingham's minus-strand genes (2,654
+    blood rows);
+  - counted one gene's several names (renamed HGNC symbols, clone names,
+    ENSG IDs) as several genes.
+* **What changes.** Map version 2026.11c is the same recipe on the
+  cpgdirectionData 0.99.7 lookups (Zenodo deposit 2.99.10). There each
+  identified gene name resolves to one Ensembl gene at a strand-aware hg19
+  TSS, and the three models are retrained on the harmonized pools.
+* **Blood:** 720,029 pairs over 314,314 probes and 6,811 genes (was 665,613
+  / 293,679 / 7,392).
+  - 551,318 pairs carry over, 431 of them (0.08%) with a new sign.
+  - 114,295 are removed: 58,532 now abstain (4,013 of them under the gene's
+    display name), 22,788 are the same gene now shown under its display
+    name, 29,974 belonged to names no longer identified (mostly HELIX
+    multi-gene names, now clusters), and 3,001 are no longer candidates.
+  - 168,711 are added, 131,827 of them pairs that used to abstain.
+* **Epithelium:** 625,937 pairs over 270,449 probes and 4,574 genes (was
+  718,943 / 283,981 / 4,641).
+  - 603,423 pairs carry over, 201 of them (0.03%) with a new sign.
+  - 115,520 are removed: 102,461 now abstain, the nasal model being
+    recalibrated, and 12,657 belonged to names no longer identified.
+  - 22,514 are added, 19,522 of them pairs that used to abstain.
+* **Alpha reference genes** (the 388 cascade genes in the blood map, 297 in
+  the epithelium map).
+  - Blood: 385 of the 388 remain. SOAT1 and SMARCC1 now abstain on every
+    pair. PDE4D is no longer a blood candidate: its one blood training row
+    lies 1.26 Mb from its TSS. Eight join: POR, NOS3, TLR9 and PPARGC1A,
+    plus CSH1, SNRPN, RTEL1 and GLB1, which were shown under multi-gene
+    names before.
+  - Epithelium: 296 of the 297 remain (PRKAR2B now abstains on every pair);
+    ABCB1 joins.
+  - The cascade's own probe-gene pairs keep their signs: 0 of 2,581 change
+    in blood and 2 of 1,977 in epithelium.
+* `inst/scripts/make_direction_maps.R` records the new source. Its
+  `source_doi` is the deposit's concept DOI, because the version DOI is
+  minted only when 2.99.10 is published. The version test expects 2026.11c,
+  and the documentation counts are updated.
+* Map 2026.11b (from the withdrawn cpgdirectionData 0.99.6) and dmsa 0.99.26
+  were never released.
+* **Unchanged.** The per-column Alpha snapshots behind
+  `dmsa_frame(direction_source = "bundled")` (the NAR and registered runs)
+  and the engine. No R code change.
+
 # dmsa 0.99.25
 
 * **withr (>= 3.0.3).** withr fixed `local_seed()` not restoring the

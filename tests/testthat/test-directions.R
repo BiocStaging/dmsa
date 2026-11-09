@@ -83,9 +83,11 @@ test_that("no bundled pair links a probe to a gene on another chromosome", {
   ## Map 2026.08 came from catalogue lookups that put many genes on the wrong
   ## chromosome: 84,117 blood and 15,313 epithelium rows paired a probe with a
   ## gene elsewhere in the genome. 2026.11 is rebuilt from the corrected
-  ## lookups (cpgdirectionData 0.99.5). Checked here against the curated Alpha
-  ## cascade, which records each probe's chromosome and so each reference
-  ## gene's; on 2026.08 this test finds 167 blood and 19 epithelium rows.
+  ## lookups (cpgdirectionData 0.99.5), 2026.11c from their successor with
+  ## one Ensembl gene per name and retrained models (0.99.7). Checked here
+  ## against the curated Alpha cascade, which records each probe's
+  ## chromosome and so each reference gene's; on 2026.08 this test finds 167
+  ## blood and 19 epithelium rows.
   cas <- utils::read.csv(gzfile(system.file("extdata", "alpha_cascade_2026c.csv.gz",
                                             package = "dmsa")),
                          stringsAsFactors = FALSE)
@@ -98,7 +100,7 @@ test_that("no bundled pair links a probe to a gene on another chromosome", {
     ok <- !is.na(pc) & !is.na(gc)
     expect_gt(sum(ok), 1000)
     expect_identical(sum(pc[ok] != gc[ok]), 0L, label = tis)
-    expect_identical(attr(m, "dmsa_direction_map")$version, "2026.11")
+    expect_identical(attr(m, "dmsa_direction_map")$version, "2026.11c")
   }
 })
 
