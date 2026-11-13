@@ -129,6 +129,29 @@ test_that("the regenerated cpgdirection snapshot is the fallback of the path fun
   cf <- dmsa:::.paths_snapshot("blood", "confidence"); expect_true(all(cf$direction_tier %in% c("M", "S1")))
 })
 
+test_that("snapshot v6 carries each call's deciding source and its accuracy, and p_plus follows E17", {
+  f <- system.file("extdata", "coverage_v6_cpgdirection.csv.gz", package = "dmsa")
+  skip_if(!nzchar(f))
+  ## v5 (cpgdirection 2.6.0) is replaced, not kept beside v6
+  expect_false(nzchar(system.file("extdata", "coverage_v5_cpgdirection.csv.gz", package = "dmsa")))
+  for (tis in c("blood", "nasal_epithelium")) {
+    sn <- dmsa:::.paths_snapshot(tis)
+    expect_true(all(c("best_evidence", "direction_tier", "best_rung", "best_accuracy") %in% names(sn)))
+    ## cpgdirection reports the lower bound of a source's accuracy, floored at 0.5
+    expect_true(all(is.finite(sn$best_accuracy) & sn$best_accuracy >= 0.5 & sn$best_accuracy <= 1))
+    ## E17: P(d = +1) is best_accuracy for a +1 call, 1 - best_accuracy for a -1 call
+    expect_equal(sn$p_plus, ifelse(sn$best_direction > 0, sn$best_accuracy, 1 - sn$best_accuracy),
+                 tolerance = 1e-4)
+    expect_false(any(duplicated(sn[, c("probe", "gene")])))
+    ## every row is one of the cascade's own CpG x gene assignments
+    cas <- utils::read.csv(gzfile(system.file("extdata", "alpha_cascade_2026c.csv.gz", package = "dmsa")),
+                           stringsAsFactors = FALSE)
+    expect_true(all(paste(sn$probe, sn$gene) %in% paste(cas$cpg, cas$gene)))
+    ## measured calls are no longer weighted 1.00 (v5 read best_confidence = 1)
+    expect_true(all(abs(2 * sn$p_plus[sn$best_evidence == "measured"] - 1) < 1))
+  }
+})
+
 test_that("a CpG that pairs with two genes of the cascade enters both genes and each probe once above (0.99.16)", {
   skip_if_not(nzchar(system.file("extdata", "coverage_v4_full.csv", package = "dmsa")))
   d <- mk_hier()

@@ -40,8 +40,8 @@
   }
   if (identical(map, "auto") && is.null(.cpgd("cpg_gene_pairs")) && is.null(getOption("dmsa.pair_table", NULL))) {
     sn <- .paths_snapshot(tissue, map_level)
-    if (!is.null(sn)) return(list(mp = sn, source = sprintf("bundled cpgdirection snapshot (coverage_v5_cpgdirection, tissue %s; %d pairs)", tissue, nrow(sn)),
-                                  note = "cpgdirection is not installed: the bundled snapshot of its pair directions for the Alpha cascade was used (regenerated before release); install cpgdirection to resolve directions for your own columns"))
+    if (!is.null(sn)) return(list(mp = sn, source = sprintf("bundled cpgdirection snapshot (coverage_v6_cpgdirection, tissue %s; %d pairs)", tissue, nrow(sn)),
+                                  note = "cpgdirection is not installed: the bundled snapshot of its pair directions for the Alpha cascade was used (v6, from cpgdirection 1.1.0); install cpgdirection to resolve directions for your own columns"))
     mp <- .frame_maps("alpha")[[map_level]]
     return(list(mp = mp, source = "bundled snapshot (coverage_v4_full)",
                 note = "cpgdirection is not installed: falling back to the bundled per-column Alpha snapshot; install cpgdirection for pair-level direction resolution"))
@@ -64,9 +64,14 @@
 
 ## the regenerated snapshot of cpgdirection's pair directions for the whole
 ## Alpha cascade (blood and nasal epithelium), the fallback of the path
-## functions when cpgdirection is not installed (PI ruling 3, 2026-09-04)
+## functions when cpgdirection is not installed (PI ruling 3, 2026-09-04).
+## v6 (PI ruling 2026-11-12) is built from cpgdirection 1.1.0 by
+## inst/scripts/make_cascade_snapshot.R: each row is what the live pair path
+## returns for that pair, with the deciding source (best_evidence, best_rung),
+## its validated accuracy (best_accuracy) and p_plus resolved from it (E17).
+## It replaces v5, which came from cpgdirection 2.6.0.
 .paths_snapshot <- function(tissue = "blood", map_level = "full") {
-  f <- system.file("extdata", "coverage_v5_cpgdirection.csv.gz", package = "dmsa")
+  f <- system.file("extdata", "coverage_v6_cpgdirection.csv.gz", package = "dmsa")
   if (!nzchar(f)) return(NULL)
   sn <- utils::read.csv(gzfile(f), stringsAsFactors = FALSE)
   if (!tissue %in% sn$tissue) tissue <- "blood"

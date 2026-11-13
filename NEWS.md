@@ -1,3 +1,60 @@
+# dmsa 0.99.28
+
+## Alpha cascade snapshot v6: rebuilt from cpgdirection 1.1.0 (PI rulings 2026-11-12)
+
+* **What the snapshot is.** `coverage_v<n>_cpgdirection` holds cpgdirection's
+  pair directions for the Alpha selection cascade in blood and nasal
+  epithelium. `dmsa_mediate()`, `dmsa_modmed()`, `dmsa_transmit()` and
+  `dmsa_concordance()` use it under `map = "auto"` when cpgdirection is not
+  installed, and say so in `$map_source` and `$map_note`.
+* **What was there.** v5 came from cpgdirection 2.6.0: no SMR replication
+  rungs or per-pair accuracy, no tumor-consensus source, one distance rule,
+  and a measured call weighted 1.00.
+* **What changes.** v6 is built by `inst/scripts/make_cascade_snapshot.R`
+  from cpgdirection 1.1.0 (branch `integration-1.1.0`, c6a6092) with
+  cpgdirectionData 0.99.8. Each row is what the live pair path returns for
+  that pair: the direction, the source that decided it (`best_evidence`,
+  `best_rung`), that source's validated accuracy in the tissue
+  (`best_accuracy`), and `p_plus` resolved from it as `dmsa_align()` does
+  (E17). v6 replaces v5; v5 is no longer shipped.
+
+  | cascade pairs | blood v5 | blood v6 | epithelium v5 | epithelium v6 |
+  |---|---|---|---|---|
+  | usable | 9,578 | 10,353 | 9,574 | 9,794 |
+  | measured | 327 | 1,130 | 327 | 1,178 |
+  | SMR | 879 | 1,163 | 879 | 261 |
+  | tumor consensus | 0 | 758 | 0 | 1,025 |
+  | catalogue model | 2,161 | 2,423 | 2,156 | 1,608 |
+  | distance only | 6,211 | 4,879 | 6,212 | 5,722 |
+  | median weight \|2p - 1\| | 0.49 | 0.42 | 0.49 | 0.47 |
+
+* **Signs.** Of the pairs in both versions, 599 of 8,782 in blood (6.8%) and
+  598 of 8,509 in epithelium (7.0%) have a different sign.
+  - Where the same kind of source decides the pair in both versions the sign
+    holds (blood: 7 changes in 6,090 pairs; none in the 3,994 distance pairs).
+    The changes are pairs that another source now decides.
+  - In blood the new deciding source is a measured eQTM for 173, the tumor
+    consensus for 141, SMR for 120, the catalogue model for 107 and distance
+    for 58. 397 of the 599 land on a call with a validated accuracy of 0.80
+    or more; the rest move from one weak call to another.
+  - 61 of the 1,167 genes in both versions change their majority direction
+    in blood (53 of 1,166 in epithelium).
+* **Weights.** A measured call now carries its validated accuracy, not 1.00
+  (largest weight 0.97 in blood). In epithelium 485 pairs carry an accuracy
+  of exactly 0.50, which cpgdirection reports for a source whose lower bound
+  in that tissue is below 0.5: their weight is zero in the aligned scores,
+  and the `"majority"` module tone still counts them by sign.
+* **Who is affected.** Only runs of the four path functions without
+  cpgdirection installed. With cpgdirection installed dmsa resolves pairs
+  live, as before, and its results follow the installed cpgdirection.
+* **Not changed.** The engine; the bundled genome-wide maps behind
+  `dmsa_directions()` and `dmsa_align()` (map 2026.11c: a ladder-built map
+  is about 4.4 MB per tissue and the package must stay under 5 MB);
+  `coverage_v4_full` behind `dmsa_frame(direction_source = "bundled")` and
+  `map = "alpha"`, the map of the NAR analyses.
+* v6 is 246,660 bytes (v5: 266,198). Rows are ordered by tissue, system,
+  module, gene and probe.
+
 # dmsa 0.99.27
 
 ## Bundled direction maps 2026.11c: the catalogue's training chain rebuilt (PI rulings 2026-11-08 and 2026-11-09)
